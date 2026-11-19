@@ -10,6 +10,7 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 - Flyway (migracje schematu bazy)
 - JUnit i Testcontainers (testy z prawdziwą bazą)
 - Maven (wrapper `mvnw`)
+- Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
 
 ## Jak uruchomić
 

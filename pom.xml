@@ -28,7 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<!-- Podnoszę Jackson 3 do wersji z poprawką CVE-2026-110879, do czasu aktualizacji Spring Boot -->
+		<jackson-bom.version>3.1.8</jackson-bom.version>
 	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
