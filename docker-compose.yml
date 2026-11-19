@@ -1,0 +1,23 @@
+# Lokalne środowisko deweloperskie: baza PostgreSQL z trwałym wolumenem.
+# Dane logowania służą wyłącznie do pracy lokalnej.
+services:
+  db:
+    image: postgres:18
+    container_name: libris-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: libris
+      POSTGRES_USER: libris
+      POSTGRES_PASSWORD: libris
+    ports:
+      - "5432:5432"
+    volumes:
+      - libris-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libris -d libris"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  libris-db-data:

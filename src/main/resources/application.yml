@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: libris-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/libris}
+    username: ${DB_USER:libris}
+    password: ${DB_PASSWORD:libris}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
