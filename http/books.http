@@ -1,0 +1,35 @@
+@host = http://localhost:8080
+
+### Dodaj książkę
+POST {{host}}/api/v1/books
+Content-Type: application/json
+
+{
+  "title": "Czysty kod",
+  "author": "Robert C. Martin",
+  "publicationYear": 2008,
+  "isbn": "0-13-235088-2",
+  "genre": "SCIENCE"
+}
+
+### Lista z wyszukiwaniem
+GET {{host}}/api/v1/books?search=kod&sort=title,asc
+
+### Pobierz książkę
+GET {{host}}/api/v1/books/1
+
+### Aktualizuj (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/books/1
+Content-Type: application/json
+
+{
+  "title": "Czysty kod. Wydanie 2",
+  "author": "Robert C. Martin",
+  "publicationYear": 2008,
+  "isbn": "9780132350884",
+  "genre": "SCIENCE",
+  "version": 0
+}
+
+### Usuń książkę
+DELETE {{host}}/api/v1/books/1
