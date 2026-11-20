@@ -2,12 +2,13 @@ package pl.tajko.library.api.book;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /**
  * Repozytorium tytułów książek. Spring Data tworzy implementację automatycznie
  * na podstawie nazw metod.
  */
-public interface BookRepository extends JpaRepository<Book, Long> {
+public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
 
     /**
      * Wyszukuje książkę po numerze ISBN-13.
