@@ -243,7 +243,7 @@ class BookControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.content[2].title").value("Wiedźmin"))
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.page").value(0))
-                .andExpect(jsonPath("$.size").value(10));
+                .andExpect(jsonPath("$.size").value(20));
     }
 
     /**

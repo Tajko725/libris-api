@@ -77,7 +77,7 @@ public class BookController {
     public PageResponse<BookResponse> search(
             @RequestParam(name = "search", required = false) String search,
             @RequestParam(name = "genre", required = false) Genre genre,
-            @PageableDefault(sort = "title") Pageable pageable) {
+            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
         return bookService.search(search, genre, pageable);
     }
 
