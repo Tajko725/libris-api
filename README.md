@@ -23,6 +23,28 @@ Dane logowania do bazy w `docker-compose.yml` służą tylko do pracy lokalnej. 
 
 Zatrzymanie bazy z zachowaniem danych: `docker compose down`. Zatrzymanie razem z usunięciem danych: `docker compose down -v`.
 
+## API książek
+
+Adres bazowy: `http://localhost:8080/api/v1/books`
+
+| Metoda | Adres | Opis |
+|---|---|---|
+| POST | `/api/v1/books` | dodaję książkę (201 i nagłówek `Location`) |
+| GET | `/api/v1/books/{id}` | zwracam książkę z liczbą egzemplarzy |
+| GET | `/api/v1/books` | zwracam stronę książek; parametry: `page`, `size` (maks. 100), `sort` (np. `title,desc`), `search` (tytuł lub autor), `genre` |
+| PUT | `/api/v1/books/{id}` | aktualizuję książkę; wymaga pola `version` |
+| DELETE | `/api/v1/books/{id}` | usuwam książkę bez egzemplarzy |
+
+Przykładowe żądania są w pliku `http/books.http` (działa w VS Code z rozszerzeniem REST Client oraz w IntelliJ IDEA Ultimate). Wygodny interfejs w przeglądarce dodam razem z dokumentacją OpenAPI.
+
+Błędy zwracam w formacie Problem Details (RFC 9457, `application/problem+json`): `400` przy niepoprawnych danych (z listą błędnych pól), `404` gdy książki nie ma, `409` przy duplikacie ISBN, próbie usunięcia książki z egzemplarzami oraz przy konflikcie wersji.
+
+Równoczesna edycja: odpowiedź zawiera pole `version`, które odsyłam w `PUT`. Jeśli ktoś zdążył zmienić książkę wcześniej, dostaję `409` zamiast po cichu nadpisanych zmian.
+
+## Status
+
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, REST API książek z DTO, walidacją i obsługą błędów. Dalej: egzemplarze, czytelnicy i wypożyczenia, dokumentacja OpenAPI, CI w GitHub Actions.
+
 ## Testy
 
 `.\mvnw.cmd clean verify`. Testy integracyjne same uruchamiają PostgreSQL w kontenerze, więc potrzebuję działającego Dockera.
