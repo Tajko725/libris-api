@@ -1,9 +1,7 @@
 package pl.tajko.library.api.reader;
 
 import java.util.Set;
-import java.util.TreeSet;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +9,8 @@ import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.PageResponse;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.common.SortValidator;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Logika biznesowa czytelników: rejestracja, odczyt, wyszukiwanie, edycja (w tym dezaktywacja) i usuwanie.
@@ -25,14 +25,17 @@ public class ReaderService {
             Set.of("id", "lastName", "firstName", "email", "cardNumber", "registeredAt");
 
     private final ReaderRepository readerRepository;
+    private final LoanRepository loanRepository;
 
     /**
-     * Tworzy serwis z repozytorium czytelników.
+     * Tworzy serwis z potrzebnymi repozytoriami.
      *
      * @param readerRepository repozytorium czytelników
+     * @param loanRepository   repozytorium wypożyczeń (do ochrony historii przed usunięciem)
      */
-    public ReaderService(ReaderRepository readerRepository) {
+    public ReaderService(ReaderRepository readerRepository, LoanRepository loanRepository) {
         this.readerRepository = readerRepository;
+        this.loanRepository = loanRepository;
     }
 
     /**
@@ -74,7 +77,7 @@ public class ReaderService {
      */
     @Transactional(readOnly = true)
     public PageResponse<ReaderResponse> search(String search, Boolean active, Pageable pageable) {
-        requireAllowedSort(pageable.getSort());
+        SortValidator.requireAllowed(pageable.getSort(), ALLOWED_SORT_PROPERTIES);
 
         Specification<Reader> specification = Specification.unrestricted();
         if (active != null) {
@@ -123,14 +126,21 @@ public class ReaderService {
     }
 
     /**
-     * Usuwa czytelnika. Blokadę dla czytelników z historią wypożyczeń dodam razem z wypożyczeniami.
+     * Usuwa czytelnika, który nigdy nie wypożyczał książek. Czytelnika z historią wypożyczeń (także
+     * zakończonych) można tylko dezaktywować, bo historia musi pozostać kompletna.
      *
      * @param id identyfikator czytelnika
      * @throws ResourceNotFoundException jeśli czytelnik nie istnieje
+     * @throws ConflictException         jeśli czytelnik ma historię wypożyczeń
      */
     @Transactional
     public void delete(Long id) {
-        readerRepository.delete(findOrThrow(id));
+        Reader reader = findOrThrow(id);
+        if (loanRepository.existsByReaderId(id)) {
+            throw new ConflictException("Nie można usunąć czytelnika z historią wypożyczeń. "
+                    + "Zamiast tego możesz go dezaktywować");
+        }
+        readerRepository.delete(reader);
     }
 
     private Reader findOrThrow(Long id) {
@@ -140,14 +150,5 @@ public class ReaderService {
 
     private static ConflictException emailTaken() {
         return new ConflictException("Czytelnik z takim adresem e-mail już istnieje");
-    }
-
-    private static void requireAllowedSort(Sort sort) {
-        for (Sort.Order order : sort) {
-            if (!ALLOWED_SORT_PROPERTIES.contains(order.getProperty())) {
-                throw new InvalidRequestException("Niedozwolone pole sortowania: " + order.getProperty()
-                        + ". Dozwolone: " + new TreeSet<>(ALLOWED_SORT_PROPERTIES));
-            }
-        }
     }
 }

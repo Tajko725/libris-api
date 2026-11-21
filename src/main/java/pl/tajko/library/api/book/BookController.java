@@ -82,7 +82,8 @@ public class BookController {
      * @return książka
      */
     @Operation(summary = "Pobierz książkę",
-            description = "Zwraca książkę o podanym identyfikatorze wraz z liczbą jej egzemplarzy.")
+            description = "Zwraca książkę o podanym identyfikatorze wraz z liczbą jej egzemplarzy "
+                    + "i liczbą egzemplarzy dostępnych do wypożyczenia.")
     @ApiResponse(responseCode = "200", description = "Książka została znaleziona")
     @ApiResponse(responseCode = "400",
             description = "Identyfikator nie jest liczbą",
@@ -100,16 +101,19 @@ public class BookController {
 
     /**
      * Zwraca stronę książek. Parametry: {@code page}, {@code size} (maks. 100),
-     * {@code sort} (np. {@code title,desc}), {@code search} (tytuł lub autor) i {@code genre}.
+     * {@code sort} (np. {@code title,desc}), {@code search} (tytuł lub autor), {@code genre}
+     * i {@code available}.
      *
-     * @param search   fragment tytułu lub autora, opcjonalny
-     * @param genre    gatunek, opcjonalny
+     * @param search    fragment tytułu lub autora, opcjonalny
+     * @param genre     gatunek, opcjonalny
+     * @param available czy tylko książki z wolnym egzemplarzem (true) albo bez wolnego (false), opcjonalny
      * @param pageable strona i sortowanie (domyślnie według tytułu)
      * @return strona książek
      */
     @Operation(summary = "Wyszukaj książki",
             description = "Zwraca stronę książek. Można wyszukiwać po fragmencie tytułu lub autora "
-                    + "(bez rozróżniania wielkości liter) i filtrować po gatunku. "
+                    + "(bez rozróżniania wielkości liter), filtrować po gatunku i po dostępności "
+                    + "(available=true: jest co najmniej jeden niewypożyczony egzemplarz). "
                     + "Sortować wolno po polach: id, title, author, publicationYear, isbn, genre. "
                     + "Maksymalny rozmiar strony to 100, domyślny 20.")
     @ApiResponse(responseCode = "200", description = "Strona książek (może być pusta)")
@@ -123,8 +127,11 @@ public class BookController {
             @RequestParam(name = "search", required = false) String search,
             @Parameter(description = "Gatunek do filtrowania", example = "SCIENCE")
             @RequestParam(name = "genre", required = false) Genre genre,
+            @Parameter(description = "true: tylko książki z wolnym egzemplarzem, false: tylko bez wolnego "
+                    + "(w tym bez egzemplarzy)", example = "true")
+            @RequestParam(name = "available", required = false) Boolean available,
             @ParameterObject @PageableDefault(size = 20, sort = "title") Pageable pageable) {
-        return bookService.search(search, genre, pageable);
+        return bookService.search(search, genre, available, pageable);
     }
 
     /**

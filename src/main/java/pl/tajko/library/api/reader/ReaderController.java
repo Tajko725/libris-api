@@ -166,11 +166,15 @@ public class ReaderController {
      * @param id identyfikator czytelnika
      */
     @Operation(summary = "Usuń czytelnika",
-            description = "Usuwa czytelnika. Gdy dodamy wypożyczenia, czytelnika z historią wypożyczeń "
-                    + "będzie można tylko dezaktywować.")
+            description = "Usuwa czytelnika, który nigdy nie wypożyczał książek. Czytelnika z historią "
+                    + "wypożyczeń można tylko dezaktywować (PUT z active = false).")
     @ApiResponse(responseCode = "204", description = "Czytelnik został usunięty")
     @ApiResponse(responseCode = "404",
             description = "Czytelnik o podanym identyfikatorze nie istnieje",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemResponse.class)))
+    @ApiResponse(responseCode = "409",
+            description = "Czytelnik ma historię wypożyczeń, więc nie można go usunąć",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemResponse.class)))
     @DeleteMapping("/{id}")

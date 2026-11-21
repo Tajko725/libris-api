@@ -18,8 +18,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Testy jednostkowe logiki {@link BookItemService} z zamockowanymi repozytoriami.
@@ -34,6 +36,9 @@ class BookItemServiceTest {
 
     @Mock
     private BookItemRepository bookItemRepository;
+
+    @Mock
+    private LoanRepository loanRepository;
 
     @InjectMocks
     private BookItemService bookItemService;
@@ -170,6 +175,22 @@ class BookItemServiceTest {
     }
 
     /**
+     * Egzemplarz z historią wypożyczeń (także zakończonych) nie jest usuwany, a odpowiedź to konflikt.
+     */
+    @Test
+    void shouldNotDeleteItemWithLoanHistory() {
+        BookItem item = itemWithId(bookWithId(5L), 7L);
+        when(bookRepository.existsById(5L)).thenReturn(true);
+        when(bookItemRepository.findByIdAndBookId(7L, 5L)).thenReturn(Optional.of(item));
+        when(loanRepository.existsByBookItemId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> bookItemService.delete(5L, 7L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("historię wypożyczeń");
+        verify(bookItemRepository, never()).delete(org.mockito.ArgumentMatchers.any(BookItem.class));
+    }
+
+    /**
      * Egzemplarz innej książki (lub nieistniejący) nie jest usuwany.
      */
     @Test
@@ -192,6 +213,6 @@ class BookItemServiceTest {
         when(bookRepository.existsById(404L)).thenReturn(false);
 
         assertThatThrownBy(() -> bookItemService.delete(404L, 7L)).isInstanceOf(ResourceNotFoundException.class);
-        verifyNoInteractions(bookItemRepository);
+        verifyNoInteractions(bookItemRepository, loanRepository);
     }
 }

@@ -109,6 +109,45 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Specyfikacja opisuje endpointy wypożyczeń (w tym zwrot i przedłużenie), błędy 409 w formacie
+     * Problem Details oraz nie zawiera operacji, których API nie ma.
+     */
+    @Test
+    void shouldDocumentLoanEndpoints() throws Exception {
+        String loans = "$.paths['/api/v1/loans']";
+        String loanById = "$.paths['/api/v1/loans/{id}']";
+        String giveBack = "$.paths['/api/v1/loans/{id}/return']";
+        String renew = "$.paths['/api/v1/loans/{id}/renew']";
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(loans + ".post").exists())
+                .andExpect(jsonPath(loans + ".get").exists())
+                .andExpect(jsonPath(loanById + ".get").exists())
+                .andExpect(jsonPath(giveBack + ".post").exists())
+                .andExpect(jsonPath(renew + ".post").exists())
+                .andExpect(jsonPath(loans + ".post.responses['409'].content['application/problem+json']").exists())
+                .andExpect(jsonPath(renew + ".post.responses['409'].content['application/problem+json']").exists())
+                .andExpect(jsonPath(loanById + ".delete").doesNotExist())
+                .andExpect(jsonPath(loanById + ".put").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.LoanResponse").exists());
+    }
+
+    /**
+     * Usuwanie egzemplarza i czytelnika ma opisaną odpowiedź 409 (historia wypożyczeń), a lista książek
+     * parametr available.
+     */
+    @Test
+    void shouldDocumentLoanRelatedChangesInBookAndReaderEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/books/{bookId}/items/{itemId}'].delete.responses['409']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/readers/{id}'].delete.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/books'].get.parameters[?(@.name=='available')]").exists());
+    }
+
+    /**
      * Specyfikacja nie zawiera operacji, których API nie ma, ani endpointów Actuatora.
      */
     @Test

@@ -3,12 +3,10 @@ package pl.tajko.library.api.book;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +14,8 @@ import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.PageResponse;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.common.SortValidator;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Logika biznesowa książek (tytułów): dodawanie, odczyt, wyszukiwanie, edycja i usuwanie.
@@ -31,16 +31,20 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final BookItemRepository bookItemRepository;
+    private final LoanRepository loanRepository;
 
     /**
      * Tworzy serwis z potrzebnymi repozytoriami.
      *
      * @param bookRepository     repozytorium tytułów
      * @param bookItemRepository repozytorium egzemplarzy
+     * @param loanRepository     repozytorium wypożyczeń (do liczenia dostępnych egzemplarzy)
      */
-    public BookService(BookRepository bookRepository, BookItemRepository bookItemRepository) {
+    public BookService(BookRepository bookRepository, BookItemRepository bookItemRepository,
+                       LoanRepository loanRepository) {
         this.bookRepository = bookRepository;
         this.bookItemRepository = bookItemRepository;
+        this.loanRepository = loanRepository;
     }
 
     /**
@@ -58,20 +62,19 @@ public class BookService {
         }
         Book saved = bookRepository.save(new Book(
                 request.title(), request.author(), request.publicationYear(), isbn, request.genre()));
-        return BookResponse.from(saved, 0);
+        return BookResponse.from(saved, 0, 0);
     }
 
     /**
      * Zwraca książkę o podanym identyfikatorze.
      *
      * @param id identyfikator książki
-     * @return książka z liczbą egzemplarzy
+     * @return książka z liczbą egzemplarzy i liczbą egzemplarzy dostępnych do wypożyczenia
      * @throws ResourceNotFoundException jeśli książka nie istnieje
      */
     @Transactional(readOnly = true)
     public BookResponse get(Long id) {
-        Book book = findOrThrow(id);
-        return BookResponse.from(book, bookItemRepository.countByBookId(id));
+        return toResponse(findOrThrow(id));
     }
 
     /**
@@ -79,25 +82,34 @@ public class BookService {
      *
      * @param search   fragment tytułu lub autora (bez rozróżniania wielkości liter), może być {@code null}
      * @param genre    gatunek do filtrowania, może być {@code null}
+     * @param available {@code true}: tylko książki z wolnym egzemplarzem, {@code false}: tylko bez wolnego
+     *                  egzemplarza, {@code null}: bez filtra
      * @param pageable strona i sortowanie
-     * @return strona książek z liczbą egzemplarzy
+     * @return strona książek z liczbą egzemplarzy i liczbą egzemplarzy dostępnych
      * @throws InvalidRequestException jeśli sortowanie dotyczy niedozwolonego pola
      */
     @Transactional(readOnly = true)
-    public PageResponse<BookResponse> search(String search, Genre genre, Pageable pageable) {
-        requireAllowedSort(pageable.getSort());
+    public PageResponse<BookResponse> search(String search, Genre genre, Boolean available, Pageable pageable) {
+        SortValidator.requireAllowed(pageable.getSort(), ALLOWED_SORT_PROPERTIES);
 
         Specification<Book> specification = Specification.unrestricted();
         if (genre != null) {
             specification = specification.and(BookSpecifications.hasGenre(genre));
+        }
+        if (available != null) {
+            specification = specification.and(BookSpecifications.hasAvailableCopy(available));
         }
         if (search != null && !search.isBlank()) {
             specification = specification.and(BookSpecifications.titleOrAuthorContains(search));
         }
 
         Page<Book> page = bookRepository.findAll(specification, pageable);
-        Map<Long, Long> counts = countItems(page.getContent());
-        return PageResponse.from(page.map(book -> BookResponse.from(book, counts.getOrDefault(book.getId(), 0L))));
+        Map<Long, Long> copies = countItems(page.getContent());
+        Map<Long, Long> borrowed = countActiveLoans(page.getContent());
+        return PageResponse.from(page.map(book -> {
+            long copiesCount = copies.getOrDefault(book.getId(), 0L);
+            return BookResponse.from(book, copiesCount, copiesCount - borrowed.getOrDefault(book.getId(), 0L));
+        }));
     }
 
     /**
@@ -132,8 +144,7 @@ public class BookService {
         book.setIsbn(isbn);
         book.setGenre(request.genre());
 
-        Book saved = bookRepository.saveAndFlush(book);
-        return BookResponse.from(saved, bookItemRepository.countByBookId(id));
+        return toResponse(bookRepository.saveAndFlush(book));
     }
 
     /**
@@ -157,6 +168,25 @@ public class BookService {
                 .orElseThrow(() -> new ResourceNotFoundException("Nie znaleziono książki o id " + id));
     }
 
+    private BookResponse toResponse(Book book) {
+        long copiesCount = bookItemRepository.countByBookId(book.getId());
+        long borrowed = loanRepository.countActiveByBookId(book.getId());
+        return BookResponse.from(book, copiesCount, copiesCount - borrowed);
+    }
+
+    private Map<Long, Long> countActiveLoans(List<Book> books) {
+        if (books.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = books.stream().map(Book::getId).toList();
+        return loanRepository.countActiveByBookIds(ids).stream()
+                .collect(Collectors.toMap(
+                        LoanRepository.ActiveLoanCount::getBookId,
+                        LoanRepository.ActiveLoanCount::getLoanCount,
+                        Long::sum,
+                        java.util.HashMap::new));
+    }
+
     private Map<Long, Long> countItems(List<Book> books) {
         if (books.isEmpty()) {
             return Map.of();
@@ -168,14 +198,5 @@ public class BookService {
                         BookItemRepository.ItemCount::getItemCount,
                         Long::sum,
                         java.util.HashMap::new));
-    }
-
-    private static void requireAllowedSort(Sort sort) {
-        for (Sort.Order order : sort) {
-            if (!ALLOWED_SORT_PROPERTIES.contains(order.getProperty())) {
-                throw new InvalidRequestException("Niedozwolone pole sortowania: " + order.getProperty()
-                        + ". Dozwolone: " + new TreeSet<>(ALLOWED_SORT_PROPERTIES));
-            }
-        }
     }
 }

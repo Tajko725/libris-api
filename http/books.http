@@ -79,3 +79,32 @@ Content-Type: application/json
 
 ### Usuń czytelnika
 DELETE {{host}}/api/v1/readers/1
+
+
+### Lista książek z wolnym egzemplarzem
+GET {{host}}/api/v1/books?available=true
+
+
+### Wypożycz egzemplarz 1 czytelnikowi 1
+POST {{host}}/api/v1/loans
+Content-Type: application/json
+
+{
+  "bookItemId": 1,
+  "readerId": 1
+}
+
+### Pobierz wypożyczenie
+GET {{host}}/api/v1/loans/1
+
+### Aktywne wypożyczenia czytelnika 1
+GET {{host}}/api/v1/loans?readerId=1&status=ACTIVE
+
+### Przeterminowane wypożyczenia
+GET {{host}}/api/v1/loans?status=OVERDUE&sort=dueDate,asc
+
+### Przedłuż termin zwrotu (raz, tylko przed terminem)
+POST {{host}}/api/v1/loans/1/renew
+
+### Zwróć książkę
+POST {{host}}/api/v1/loans/1/return
