@@ -12,6 +12,7 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 - JUnit i Testcontainers (testy z prawdziwą bazą)
 - Maven (wrapper `mvnw`)
 - Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
+- springdoc-openapi 3.2.0 (dokumentacja OpenAPI i Swagger UI)
 
 ## Jak uruchomić
 
@@ -35,7 +36,9 @@ Adres bazowy: `http://localhost:8080/api/v1/books`
 | PUT | `/api/v1/books/{id}` | aktualizuję książkę; wymaga pola `version` |
 | DELETE | `/api/v1/books/{id}` | usuwam książkę bez egzemplarzy |
 
-Przykładowe żądania są w pliku `http/books.http` (działa w VS Code z rozszerzeniem REST Client oraz w IntelliJ IDEA Ultimate). Wygodny interfejs w przeglądarce dodam razem z dokumentacją OpenAPI.
+Dokumentację API mam w Swagger UI pod adresem `http://localhost:8080/swagger-ui.html` (po uruchomieniu aplikacji). Można tam wypróbować każdy endpoint przyciskiem „Try it out". Specyfikacja OpenAPI jest pod adresem `http://localhost:8080/v3/api-docs`.
+
+Przykładowe żądania są też w pliku `http/books.http` (działa w VS Code z rozszerzeniem REST Client oraz w IntelliJ IDEA Ultimate).
 
 Błędy zwracam w formacie Problem Details (RFC 9457, `application/problem+json`): `400` przy niepoprawnych danych (z listą błędnych pól), `404` gdy książki nie ma, `409` przy duplikacie ISBN, próbie usunięcia książki z egzemplarzami oraz przy konflikcie wersji.
 
@@ -43,7 +46,7 @@ Równoczesna edycja: odpowiedź zawiera pole `version`, które odsyłam w `PUT`.
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, REST API książek z DTO, walidacją i obsługą błędów. Dalej: egzemplarze, czytelnicy i wypożyczenia, dokumentacja OpenAPI, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, REST API książek z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: egzemplarze, czytelnicy i wypożyczenia, CI w GitHub Actions.
 
 ## Testy
 
