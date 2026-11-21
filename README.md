@@ -73,9 +73,13 @@ Schemat bazy tworzy Flyway (migracje w `src/main/resources/db/migration`).
 
 Reguły pilnuję w dwóch miejscach: w kodzie (walidacja w encjach) i w bazie (ograniczenia `CHECK`, `UNIQUE`, klucz obcy). Obie encje mają pole `version` (optymistyczne blokowanie), które wykrywa równoczesną edycję tego samego rekordu przez dwóch użytkowników.
 
+### Czytelnicy
+
+Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-mail (unikalny, zapisywany małymi literami), opcjonalny telefon, datę rejestracji i status `active` (dezaktywowany czytelnik nie będzie mógł wypożyczać książek). Numer karty bibliotecznej w formacie `LB-000001` nadaje baza z sekwencji `reader_card_number_seq`, więc bibliotekarz go nie wpisuje, a numery się nie powtarzają. Poprawność danych pilnuję trzy razy: w encji, w walidacji API (dodam je w kolejnej funkcji) i w ograniczeniach bazy.
+
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek (migracja, encje, repozytoria, testy). Dalej: REST API książek z DTO, czytelnicy i wypożyczenia, dokumentacja OpenAPI, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy i czytelników, REST API książek i egzemplarzy z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: REST API czytelników, wypożyczenia, CI w GitHub Actions.
 
 ## Licencja
 
