@@ -44,9 +44,21 @@ Błędy zwracam w formacie Problem Details (RFC 9457, `application/problem+json`
 
 Równoczesna edycja: odpowiedź zawiera pole `version`, które odsyłam w `PUT`. Jeśli ktoś zdążył zmienić książkę wcześniej, dostaję `409` zamiast po cichu nadpisanych zmian.
 
+### Egzemplarze
+
+Egzemplarz to fizyczna sztuka książki. Dane książki (tytuł, autor, ISBN) są zapisane raz, a egzemplarze tylko wskazują na nią. Liczba sztuk jest widoczna w polu `copiesCount` odpowiedzi o książce.
+
+| Metoda | Adres | Opis |
+|---|---|---|
+| POST | `/api/v1/books/{bookId}/items` | dodaję `count` egzemplarzy (od 1 do 100 w jednym żądaniu); kolejne wywołania dodają kolejne sztuki |
+| GET | `/api/v1/books/{bookId}/items` | zwracam listę egzemplarzy książki |
+| DELETE | `/api/v1/books/{bookId}/items/{itemId}` | usuwam egzemplarz książki |
+
+Książkę można usunąć dopiero po usunięciu wszystkich jej egzemplarzy (w przeciwnym razie `409`). Egzemplarz z adresu innej książki lub nieistniejący daje `404`.
+
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, REST API książek z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: egzemplarze, czytelnicy i wypożyczenia, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych, REST API książek i egzemplarzy z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: czytelnicy i wypożyczenia, CI w GitHub Actions.
 
 ## Testy
 

@@ -33,3 +33,18 @@ Content-Type: application/json
 
 ### Usuń książkę
 DELETE {{host}}/api/v1/books/1
+
+
+### Dodaj 3 egzemplarze do książki 1
+POST {{host}}/api/v1/books/1/items
+Content-Type: application/json
+
+{
+  "count": 3
+}
+
+### Lista egzemplarzy książki 1
+GET {{host}}/api/v1/books/1/items
+
+### Usuń egzemplarz 1 książki 1
+DELETE {{host}}/api/v1/books/1/items/1
