@@ -27,6 +27,7 @@ import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.PageResponse;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Testy jednostkowe logiki {@link BookService} z zamockowanymi repozytoriami.
@@ -43,6 +44,9 @@ class BookServiceTest {
     @Mock
     private BookItemRepository bookItemRepository;
 
+    @Mock
+    private LoanRepository loanRepository;
+
     @InjectMocks
     private BookService bookService;
 
@@ -50,6 +54,20 @@ class BookServiceTest {
         Book book = new Book(title, "Autor", 2000, isbn, Genre.OTHER);
         ReflectionTestUtils.setField(book, "id", id);
         return book;
+    }
+
+    private static LoanRepository.ActiveLoanCount activeLoanCount(long bookId, long count) {
+        return new LoanRepository.ActiveLoanCount() {
+            @Override
+            public Long getBookId() {
+                return bookId;
+            }
+
+            @Override
+            public long getLoanCount() {
+                return count;
+            }
+        };
     }
 
     private static BookItemRepository.ItemCount itemCount(long bookId, long count) {
@@ -118,6 +136,33 @@ class BookServiceTest {
 
         assertThat(response.id()).isEqualTo(5L);
         assertThat(response.copiesCount()).isEqualTo(3L);
+    }
+
+    /**
+     * Dostępne egzemplarze to wszystkie egzemplarze pomniejszone o aktywne wypożyczenia.
+     */
+    @Test
+    void shouldReturnAvailableCopiesWithoutBorrowedOnes() {
+        when(bookRepository.findById(5L)).thenReturn(Optional.of(bookWithId(5L, "Tytuł", ISBN_13)));
+        when(bookItemRepository.countByBookId(5L)).thenReturn(3L);
+        when(loanRepository.countActiveByBookId(5L)).thenReturn(1L);
+
+        BookResponse response = bookService.get(5L);
+
+        assertThat(response.copiesCount()).isEqualTo(3L);
+        assertThat(response.availableCopies()).isEqualTo(2L);
+    }
+
+    /**
+     * Książka, której wszystkie egzemplarze są wypożyczone, nie ma dostępnych egzemplarzy.
+     */
+    @Test
+    void shouldReturnZeroAvailableCopiesWhenAllAreBorrowed() {
+        when(bookRepository.findById(5L)).thenReturn(Optional.of(bookWithId(5L, "Tytuł", ISBN_13)));
+        when(bookItemRepository.countByBookId(5L)).thenReturn(2L);
+        when(loanRepository.countActiveByBookId(5L)).thenReturn(2L);
+
+        assertThat(bookService.get(5L).availableCopies()).isZero();
     }
 
     /**
@@ -253,10 +298,29 @@ class BookServiceTest {
                 .thenReturn(new PageImpl<>(List.of(first, second), pageable, 2));
         when(bookItemRepository.countByBookIds(anyCollection())).thenReturn(List.of(itemCount(1L, 3L)));
 
-        PageResponse<BookResponse> response = bookService.search("tytuł", Genre.OTHER, pageable);
+        PageResponse<BookResponse> response = bookService.search("tytuł", Genre.OTHER, null, pageable);
 
         assertThat(response.totalElements()).isEqualTo(2);
         assertThat(response.content()).extracting(BookResponse::copiesCount).containsExactly(3L, 0L);
+    }
+
+    /**
+     * Na liście dostępność jest liczona dla każdej książki osobno: egzemplarze minus aktywne wypożyczenia.
+     */
+    @Test
+    void shouldReturnPageWithAvailableCopies() {
+        Pageable pageable = PageRequest.of(0, 20, Sort.by("title"));
+        Book first = bookWithId(1L, "Pierwsza", ISBN_13);
+        Book second = bookWithId(2L, "Druga", OTHER_ISBN_13);
+        when(bookRepository.findAll(ArgumentMatchers.<Specification<Book>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(first, second), pageable, 2));
+        when(bookItemRepository.countByBookIds(anyCollection()))
+                .thenReturn(List.of(itemCount(1L, 3L), itemCount(2L, 2L)));
+        when(loanRepository.countActiveByBookIds(anyCollection())).thenReturn(List.of(activeLoanCount(1L, 2L)));
+
+        PageResponse<BookResponse> response = bookService.search(null, null, true, pageable);
+
+        assertThat(response.content()).extracting(BookResponse::availableCopies).containsExactly(1L, 2L);
     }
 
     /**
@@ -268,10 +332,10 @@ class BookServiceTest {
         when(bookRepository.findAll(ArgumentMatchers.<Specification<Book>>any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
-        PageResponse<BookResponse> response = bookService.search(null, null, pageable);
+        PageResponse<BookResponse> response = bookService.search(null, null, null, pageable);
 
         assertThat(response.content()).isEmpty();
-        verifyNoInteractions(bookItemRepository);
+        verifyNoInteractions(bookItemRepository, loanRepository);
     }
 
     /**
@@ -281,9 +345,9 @@ class BookServiceTest {
     void shouldRejectSortingByDisallowedProperty() {
         Pageable pageable = PageRequest.of(0, 20, Sort.by("version"));
 
-        assertThatThrownBy(() -> bookService.search(null, null, pageable))
+        assertThatThrownBy(() -> bookService.search(null, null, null, pageable))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("version");
-        verifyNoInteractions(bookRepository, bookItemRepository);
+        verifyNoInteractions(bookRepository, bookItemRepository, loanRepository);
     }
 }
