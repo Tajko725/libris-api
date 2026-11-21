@@ -1,5 +1,7 @@
 package pl.tajko.library.api.book;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Książka zwracana przez API.
  *
@@ -12,14 +14,30 @@ package pl.tajko.library.api.book;
  * @param copiesCount     liczba fizycznych egzemplarzy tej książki
  * @param version         wersja książki; trzeba ją odesłać przy aktualizacji
  */
+@Schema(description = "Książka (tytuł) wraz z liczbą egzemplarzy")
 public record BookResponse(
+        @Schema(description = "Identyfikator książki", example = "1")
         Long id,
+
+        @Schema(description = "Tytuł książki", example = "Czysty kod")
         String title,
+
+        @Schema(description = "Autor książki", example = "Robert C. Martin")
         String author,
+
+        @Schema(description = "Rok wydania", example = "2008")
         int publicationYear,
+
+        @Schema(description = "Numer ISBN-13 bez myślników", example = "9780132350884")
         String isbn,
+
+        @Schema(description = "Gatunek książki", example = "SCIENCE")
         Genre genre,
+
+        @Schema(description = "Liczba fizycznych egzemplarzy tej książki", example = "2")
         long copiesCount,
+
+        @Schema(description = "Wersja książki; trzeba ją odesłać w żądaniu aktualizacji", example = "0")
         long version) {
 
     /**
