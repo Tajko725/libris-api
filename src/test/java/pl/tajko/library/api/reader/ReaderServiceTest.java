@@ -26,6 +26,7 @@ import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.PageResponse;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Testy jednostkowe logiki {@link ReaderService} z zamockowanym repozytorium.
@@ -37,6 +38,9 @@ class ReaderServiceTest {
 
     @Mock
     private ReaderRepository readerRepository;
+
+    @Mock
+    private LoanRepository loanRepository;
 
     @InjectMocks
     private ReaderService readerService;
@@ -191,6 +195,20 @@ class ReaderServiceTest {
         readerService.delete(5L);
 
         verify(readerRepository).delete(reader);
+    }
+
+    /**
+     * Czytelnik z historią wypożyczeń (także zakończonych) nie jest usuwany, a odpowiedź to konflikt.
+     */
+    @Test
+    void shouldNotDeleteReaderWithLoanHistory() {
+        when(readerRepository.findById(5L)).thenReturn(Optional.of(readerWithId(5L, EMAIL)));
+        when(loanRepository.existsByReaderId(5L)).thenReturn(true);
+
+        assertThatThrownBy(() -> readerService.delete(5L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("historią wypożyczeń");
+        verify(readerRepository, never()).delete(any(Reader.class));
     }
 
     /**

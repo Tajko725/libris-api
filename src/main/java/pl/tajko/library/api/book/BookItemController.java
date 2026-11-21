@@ -102,10 +102,15 @@ public class BookItemController {
      * @param itemId identyfikator egzemplarza
      */
     @Operation(summary = "Usuń egzemplarz",
-            description = "Usuwa jeden egzemplarz książki. Egzemplarz musi należeć do książki z adresu.")
+            description = "Usuwa jeden egzemplarz książki. Egzemplarz musi należeć do książki z adresu "
+                    + "i nie może mieć historii wypożyczeń (także zakończonych).")
     @ApiResponse(responseCode = "204", description = "Egzemplarz został usunięty")
     @ApiResponse(responseCode = "404",
             description = "Książka nie istnieje albo egzemplarz nie należy do tej książki",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemResponse.class)))
+    @ApiResponse(responseCode = "409",
+            description = "Egzemplarz ma historię wypożyczeń, więc nie można go usunąć",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemResponse.class)))
     @DeleteMapping("/{itemId}")

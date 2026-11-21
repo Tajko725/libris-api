@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.tajko.library.api.common.ConflictException;
 import pl.tajko.library.api.common.InvalidRequestException;
 import pl.tajko.library.api.common.ResourceNotFoundException;
+import pl.tajko.library.api.loan.LoanRepository;
 
 /**
  * Logika biznesowa egzemplarzy książek: dodawanie wielu sztuk naraz, lista i usuwanie.
@@ -20,16 +22,20 @@ public class BookItemService {
 
     private final BookRepository bookRepository;
     private final BookItemRepository bookItemRepository;
+    private final LoanRepository loanRepository;
 
     /**
      * Tworzy serwis z potrzebnymi repozytoriami.
      *
      * @param bookRepository     repozytorium książek
      * @param bookItemRepository repozytorium egzemplarzy
+     * @param loanRepository     repozytorium wypożyczeń (do ochrony historii przed usunięciem)
      */
-    public BookItemService(BookRepository bookRepository, BookItemRepository bookItemRepository) {
+    public BookItemService(BookRepository bookRepository, BookItemRepository bookItemRepository,
+                           LoanRepository loanRepository) {
         this.bookRepository = bookRepository;
         this.bookItemRepository = bookItemRepository;
+        this.loanRepository = loanRepository;
     }
 
     /**
@@ -75,11 +81,13 @@ public class BookItemService {
     }
 
     /**
-     * Usuwa egzemplarz książki.
+     * Usuwa egzemplarz książki, który nigdy nie był wypożyczony. Egzemplarz z historią wypożyczeń
+     * (także zakończonych) zostaje w bazie, bo historia musi pozostać kompletna.
      *
      * @param bookId identyfikator książki
      * @param itemId identyfikator egzemplarza
      * @throws ResourceNotFoundException jeśli książka nie istnieje albo egzemplarz nie należy do tej książki
+     * @throws ConflictException         jeśli egzemplarz ma historię wypożyczeń
      */
     @Transactional
     public void delete(Long bookId, Long itemId) {
@@ -87,6 +95,10 @@ public class BookItemService {
         BookItem item = bookItemRepository.findByIdAndBookId(itemId, bookId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Nie znaleziono egzemplarza o id " + itemId + " w książce o id " + bookId));
+        if (loanRepository.existsByBookItemId(itemId)) {
+            throw new ConflictException("Nie można usunąć egzemplarza, który ma historię wypożyczeń "
+                    + "(także zakończonych), bo historia musi pozostać kompletna");
+        }
         bookItemRepository.delete(item);
     }
 
