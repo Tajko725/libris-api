@@ -2,11 +2,12 @@ package pl.tajko.library.api.reader;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /**
  * Repozytorium czytelników.
  */
-public interface ReaderRepository extends JpaRepository<Reader, Long> {
+public interface ReaderRepository extends JpaRepository<Reader, Long>, JpaSpecificationExecutor<Reader> {
 
     /**
      * Szuka czytelnika po adresie e-mail (zapisanym małymi literami).
