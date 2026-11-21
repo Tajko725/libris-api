@@ -73,6 +73,23 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Specyfikacja opisuje endpointy egzemplarzy i nie zawiera operacji, których API nie ma.
+     */
+    @Test
+    void shouldDocumentBookItemEndpoints() throws Exception {
+        String items = "$.paths['/api/v1/books/{bookId}/items']";
+        String itemById = "$.paths['/api/v1/books/{bookId}/items/{itemId}']";
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(items + ".post").exists())
+                .andExpect(jsonPath(items + ".get").exists())
+                .andExpect(jsonPath(itemById + ".delete").exists())
+                .andExpect(jsonPath(items + ".delete").doesNotExist())
+                .andExpect(jsonPath(itemById + ".get").doesNotExist());
+    }
+
+    /**
      * Specyfikacja nie zawiera operacji, których API nie ma, ani endpointów Actuatora.
      */
     @Test
