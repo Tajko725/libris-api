@@ -16,6 +16,13 @@ spring:
       pageable:
         max-page-size: 100
 
+libris:
+  loans:
+    # Zasady wypożyczeń: okres wypożyczenia (dni), limit niezwróconych książek na czytelnika, długość przedłużenia (dni)
+    period-days: 30
+    max-active-per-reader: 5
+    renewal-days: 14
+
 management:
   endpoints:
     web:
