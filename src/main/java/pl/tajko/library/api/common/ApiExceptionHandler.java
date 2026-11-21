@@ -3,6 +3,7 @@ package pl.tajko.library.api.common;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -77,6 +78,20 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Niepoprawne żądanie", ex.getMessage());
+    }
+
+    /**
+     * Zamienia naruszenie ograniczenia bazy (np. duplikat wykryty dopiero przy zapisie przy równoczesnych
+     * żądaniach) na odpowiedź 409. Treść błędu bazy trafia do logu bez wartości, bo mogłaby zawierać dane osobowe.
+     *
+     * @param ex zgłoszony wyjątek
+     * @return opis błędu
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        LOG.warn("Naruszenie ograniczenia bazy danych ({})", ex.getMostSpecificCause().getClass().getSimpleName());
+        return problem(HttpStatus.CONFLICT, "Konflikt danych",
+                "Dane naruszają ograniczenia bazy (np. taki rekord już istnieje). Sprawdź dane i spróbuj ponownie.");
     }
 
     /**

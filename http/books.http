@@ -48,3 +48,34 @@ GET {{host}}/api/v1/books/1/items
 
 ### Usuń egzemplarz 1 książki 1
 DELETE {{host}}/api/v1/books/1/items/1
+
+
+### Zarejestruj czytelnika
+POST {{host}}/api/v1/readers
+Content-Type: application/json
+
+{
+  "firstName": "Anna",
+  "lastName": "Nowak",
+  "email": "anna.nowak@example.com",
+  "phone": "+48 123 456 789"
+}
+
+### Lista czytelników z wyszukiwaniem
+GET {{host}}/api/v1/readers?search=nowak&active=true&sort=lastName,asc
+
+### Zaktualizuj i dezaktywuj czytelnika (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/readers/1
+Content-Type: application/json
+
+{
+  "firstName": "Anna",
+  "lastName": "Nowak",
+  "email": "anna.nowak@example.com",
+  "phone": "+48 123 456 789",
+  "active": false,
+  "version": 0
+}
+
+### Usuń czytelnika
+DELETE {{host}}/api/v1/readers/1

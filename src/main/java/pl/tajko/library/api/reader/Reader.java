@@ -30,11 +30,15 @@ public class Reader {
     /** Maksymalna długość adresu e-mail. */
     public static final int MAX_EMAIL_LENGTH = 255;
 
-    /** Dozwolony format adresu e-mail: coś, małpa, coś, bez białych znaków. */
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+$");
+    /** Wyrażenie regularne dozwolonego formatu adresu e-mail: coś, małpa, coś, bez białych znaków. */
+    public static final String EMAIL_REGEX = "^[^@\\s]+@[^@\\s]+$";
 
-    /** Dozwolony format numeru telefonu: cyfry, spacje, plus i myślnik, od 7 do 20 znaków. */
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9 +-]{7,20}$");
+    /** Wyrażenie regularne dozwolonego formatu telefonu: cyfry, spacje, plus i myślnik, od 7 do 20 znaków. */
+    public static final String PHONE_REGEX = "^[0-9 +-]{7,20}$";
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
+
+    private static final Pattern PHONE_PATTERN = Pattern.compile(PHONE_REGEX);
 
     /** Identyfikator nadawany przez bazę. */
     @Id
@@ -160,11 +164,23 @@ public class Reader {
      * @throws IllegalArgumentException jeśli adres jest pusty, za długi lub ma zły format
      */
     public void setEmail(String email) {
+        this.email = normalizeEmail(email);
+    }
+
+    /**
+     * Sprawdza adres e-mail i zwraca go w postaci zapisywanej w bazie (bez białych znaków na brzegach,
+     * małymi literami). Używana też do sprawdzania duplikatów przed zapisem.
+     *
+     * @param email adres e-mail w formacie {@code nazwa@domena}
+     * @return znormalizowany adres
+     * @throws IllegalArgumentException jeśli adres jest pusty, za długi lub ma zły format
+     */
+    public static String normalizeEmail(String email) {
         String normalized = requireText(email, "Adres e-mail", MAX_EMAIL_LENGTH).toLowerCase(Locale.ROOT);
         if (!EMAIL_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException("Niepoprawny adres e-mail (oczekiwany format nazwa@domena)");
         }
-        this.email = normalized;
+        return normalized;
     }
 
     /**

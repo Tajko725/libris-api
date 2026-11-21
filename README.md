@@ -56,9 +56,23 @@ Egzemplarz to fizyczna sztuka książki. Dane książki (tytuł, autor, ISBN) s�
 
 Książkę można usunąć dopiero po usunięciu wszystkich jej egzemplarzy (w przeciwnym razie `409`). Egzemplarz z adresu innej książki lub nieistniejący daje `404`.
 
+### Czytelnicy
+
+Adres bazowy: `http://localhost:8080/api/v1/readers`
+
+| Metoda | Adres | Opis |
+|---|---|---|
+| POST | `/api/v1/readers` | rejestruję czytelnika (201 i nagłówek `Location`); numer karty `LB-000001` nadaje system |
+| GET | `/api/v1/readers/{id}` | zwracam czytelnika |
+| GET | `/api/v1/readers` | zwracam stronę czytelników; parametry: `page`, `size` (maks. 100), `sort` (np. `lastName,desc`), `search` (imię, nazwisko, e-mail lub numer karty), `active` |
+| PUT | `/api/v1/readers/{id}` | aktualizuję czytelnika (w tym dezaktywację polem `active`); wymaga pola `version` |
+| DELETE | `/api/v1/readers/{id}` | usuwam czytelnika |
+
+Adres e-mail jest unikalny i zapisywany małymi literami (duplikat daje `409`). Numeru karty i daty rejestracji nie da się zmienić. Konflikt równoczesnej edycji wykrywam polem `version`, tak samo jak przy książkach.
+
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych, REST API książek i egzemplarzy z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: czytelnicy i wypożyczenia, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych, REST API książek, egzemplarzy i czytelników z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: wypożyczenia, uwierzytelnianie (Spring Security), CI w GitHub Actions.
 
 ## Testy
 
