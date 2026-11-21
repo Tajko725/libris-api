@@ -90,6 +90,25 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
+     * Specyfikacja opisuje endpointy czytelników i nie zawiera operacji, których API nie ma.
+     */
+    @Test
+    void shouldDocumentReaderEndpoints() throws Exception {
+        String readers = "$.paths['/api/v1/readers']";
+        String readerById = "$.paths['/api/v1/readers/{id}']";
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(readers + ".post").exists())
+                .andExpect(jsonPath(readers + ".get").exists())
+                .andExpect(jsonPath(readerById + ".get").exists())
+                .andExpect(jsonPath(readerById + ".put").exists())
+                .andExpect(jsonPath(readerById + ".delete").exists())
+                .andExpect(jsonPath(readerById + ".post").doesNotExist())
+                .andExpect(jsonPath(readers + ".delete").doesNotExist());
+    }
+
+    /**
      * Specyfikacja nie zawiera operacji, których API nie ma, ani endpointów Actuatora.
      */
     @Test
