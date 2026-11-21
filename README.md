@@ -87,13 +87,17 @@ Schemat bazy tworzy Flyway (migracje w `src/main/resources/db/migration`).
 
 Reguły pilnuję w dwóch miejscach: w kodzie (walidacja w encjach) i w bazie (ograniczenia `CHECK`, `UNIQUE`, klucz obcy). Obie encje mają pole `version` (optymistyczne blokowanie), które wykrywa równoczesną edycję tego samego rekordu przez dwóch użytkowników.
 
+### Wypożyczenia
+
+Tabela `loan` łączy egzemplarz (`book_item`) z czytelnikiem (`reader`): zawiera datę wypożyczenia, termin zwrotu, datę zwrotu (pustą, dopóki książka nie wróci) i liczbę przedłużeń. Status „wypożyczony" nie jest zapisany w egzemplarzu, tylko wynika z tego, czy ma aktywne wypożyczenie, więc nie może się rozjechać z historią. Jeden egzemplarz ma co najwyżej jedno aktywne wypożyczenie, co pilnuje częściowy indeks unikalny w bazie (działa też przy równoczesnych żądaniach). Klucze obce mają `ON DELETE RESTRICT`, więc egzemplarza ani czytelnika z historią wypożyczeń nie da się usunąć. Termin zwrotu można przedłużyć najwyżej raz i tylko przed jego upływem.
+
 ### Czytelnicy
 
 Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-mail (unikalny, zapisywany małymi literami), opcjonalny telefon, datę rejestracji i status `active` (dezaktywowany czytelnik nie będzie mógł wypożyczać książek). Numer karty bibliotecznej w formacie `LB-000001` nadaje baza z sekwencji `reader_card_number_seq`, więc bibliotekarz go nie wpisuje, a numery się nie powtarzają. Poprawność danych pilnuję trzy razy: w encji, w walidacji API (dodam je w kolejnej funkcji) i w ograniczeniach bazy.
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy i czytelników, REST API książek i egzemplarzy z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: REST API czytelników, wypożyczenia, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy i czytelników z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: REST API wypożyczeń, uwierzytelnianie (Spring Security), CI w GitHub Actions.
 
 ## Licencja
 
