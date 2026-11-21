@@ -3,6 +3,8 @@ package pl.tajko.library.api.book;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Collection;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,6 +28,23 @@ public interface BookItemRepository extends JpaRepository<BookItem, Long> {
      * @return liczba egzemplarzy
      */
     long countByBookId(Long bookId);
+
+    /**
+     * Zwraca egzemplarze książki posortowane rosnąco po identyfikatorze.
+     *
+     * @param bookId identyfikator książki
+     * @return egzemplarze książki (pusta lista, jeśli nie ma żadnego)
+     */
+    List<BookItem> findAllByBookIdOrderByIdAsc(Long bookId);
+
+    /**
+     * Szuka egzemplarza o podanym identyfikatorze, ale tylko wśród egzemplarzy danej książki.
+     *
+     * @param id     identyfikator egzemplarza
+     * @param bookId identyfikator książki
+     * @return egzemplarz albo pusty wynik, jeśli nie istnieje lub należy do innej książki
+     */
+    Optional<BookItem> findByIdAndBookId(Long id, Long bookId);
 
     /**
      * Zlicza egzemplarze dla wielu tytułów jednym zapytaniem (unika zapytania osobno dla każdej książki).
