@@ -31,8 +31,8 @@ Adres bazowy: `http://localhost:8080/api/v1/books`
 | Metoda | Adres | Opis |
 |---|---|---|
 | POST | `/api/v1/books` | dodaję książkę (201 i nagłówek `Location`) |
-| GET | `/api/v1/books/{id}` | zwracam książkę z liczbą egzemplarzy |
-| GET | `/api/v1/books` | zwracam stronę książek; parametry: `page`, `size` (maks. 100), `sort` (np. `title,desc`), `search` (tytuł lub autor), `genre` |
+| GET | `/api/v1/books/{id}` | zwracam książkę z liczbą egzemplarzy (`copiesCount`) i liczbą dostępnych do wypożyczenia (`availableCopies`) |
+| GET | `/api/v1/books` | zwracam stronę książek; parametry: `page`, `size` (maks. 100), `sort` (np. `title,desc`), `search` (tytuł lub autor), `genre`, `available` (`true`: jest wolny egzemplarz) |
 | PUT | `/api/v1/books/{id}` | aktualizuję książkę; wymaga pola `version` |
 | DELETE | `/api/v1/books/{id}` | usuwam książkę bez egzemplarzy |
 
@@ -52,9 +52,9 @@ Egzemplarz to fizyczna sztuka książki. Dane książki (tytuł, autor, ISBN) s�
 |---|---|---|
 | POST | `/api/v1/books/{bookId}/items` | dodaję `count` egzemplarzy (od 1 do 100 w jednym żądaniu); kolejne wywołania dodają kolejne sztuki |
 | GET | `/api/v1/books/{bookId}/items` | zwracam listę egzemplarzy książki |
-| DELETE | `/api/v1/books/{bookId}/items/{itemId}` | usuwam egzemplarz książki |
+| DELETE | `/api/v1/books/{bookId}/items/{itemId}` | usuwam egzemplarz książki, który nigdy nie był wypożyczony |
 
-Książkę można usunąć dopiero po usunięciu wszystkich jej egzemplarzy (w przeciwnym razie `409`). Egzemplarz z adresu innej książki lub nieistniejący daje `404`.
+Książkę można usunąć dopiero po usunięciu wszystkich jej egzemplarzy (w przeciwnym razie `409`). Egzemplarz z adresu innej książki lub nieistniejący daje `404`. Egzemplarza z historią wypożyczeń (także zakończonych) nie usunę (`409`), bo historia musi pozostać kompletna.
 
 ### Czytelnicy
 
@@ -66,13 +66,25 @@ Adres bazowy: `http://localhost:8080/api/v1/readers`
 | GET | `/api/v1/readers/{id}` | zwracam czytelnika |
 | GET | `/api/v1/readers` | zwracam stronę czytelników; parametry: `page`, `size` (maks. 100), `sort` (np. `lastName,desc`), `search` (imię, nazwisko, e-mail lub numer karty), `active` |
 | PUT | `/api/v1/readers/{id}` | aktualizuję czytelnika (w tym dezaktywację polem `active`); wymaga pola `version` |
-| DELETE | `/api/v1/readers/{id}` | usuwam czytelnika |
+| DELETE | `/api/v1/readers/{id}` | usuwam czytelnika, który nigdy nie wypożyczał książek |
 
-Adres e-mail jest unikalny i zapisywany małymi literami (duplikat daje `409`). Numeru karty i daty rejestracji nie da się zmienić. Konflikt równoczesnej edycji wykrywam polem `version`, tak samo jak przy książkach.
+Adres e-mail jest unikalny i zapisywany małymi literami (duplikat daje `409`). Numeru karty i daty rejestracji nie da się zmienić. Konflikt równoczesnej edycji wykrywam polem `version`, tak samo jak przy książkach. Czytelnika z historią wypożyczeń nie usunę (`409`), mogę go tylko dezaktywować.
 
-## Status
+## API wypożyczeń
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych, REST API książek, egzemplarzy i czytelników z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: wypożyczenia, uwierzytelnianie (Spring Security), CI w GitHub Actions.
+Adres bazowy: `http://localhost:8080/api/v1/loans`
+
+| Metoda | Adres | Opis |
+|---|---|---|
+| POST | `/api/v1/loans` | wypożyczam egzemplarz czytelnikowi (`bookItemId`, `readerId`); termin zwrotu ustawia serwer |
+| GET | `/api/v1/loans/{id}` | zwracam wypożyczenie z podstawowymi danymi czytelnika i książki |
+| GET | `/api/v1/loans` | zwracam stronę wypożyczeń (także historię); parametry: `page`, `size`, `sort`, `readerId`, `bookId`, `status` (`ACTIVE`, `OVERDUE`, `RETURNED`) |
+| POST | `/api/v1/loans/{id}/return` | rejestruję zwrot |
+| POST | `/api/v1/loans/{id}/renew` | przedłużam termin zwrotu |
+
+Zasady wypożyczeń ustawiam w `application.yml` (klucz `libris.loans`): okres wypożyczenia 30 dni, limit 5 niezwróconych książek na czytelnika, przedłużenie o 14 dni. Aplikacja nie uruchomi się, jeśli którakolwiek wartość jest mniejsza niż 1.
+
+Odmawiam (`409`), gdy: egzemplarz jest już wypożyczony, czytelnik jest nieaktywny, ma książkę po terminie albo osiągnął limit. Termin zwrotu można przedłużyć tylko raz i tylko do dnia terminu włącznie. Kar za przetrzymanie nie ma. Stan wypożyczenia (`ACTIVE`, `OVERDUE`, `RETURNED`) wyliczam na bieżąco z terminu i daty zwrotu, a nie zapisuję w bazie. Czas pobieram ze wstrzykiwanego `Clock` (UTC), więc testy mogą ustawić dowolny moment. Limit wypożyczeń pilnuję blokadą wiersza czytelnika, więc dwa równoczesne żądania nie ominą limitu, a ten sam egzemplarz nie trafi do dwóch osób naraz dzięki indeksowi w bazie.
 
 ## Testy
 
@@ -89,7 +101,7 @@ Reguły pilnuję w dwóch miejscach: w kodzie (walidacja w encjach) i w bazie (o
 
 ### Wypożyczenia
 
-Tabela `loan` łączy egzemplarz (`book_item`) z czytelnikiem (`reader`): zawiera datę wypożyczenia, termin zwrotu, datę zwrotu (pustą, dopóki książka nie wróci) i liczbę przedłużeń. Status „wypożyczony" nie jest zapisany w egzemplarzu, tylko wynika z tego, czy ma aktywne wypożyczenie, więc nie może się rozjechać z historią. Jeden egzemplarz ma co najwyżej jedno aktywne wypożyczenie, co pilnuje częściowy indeks unikalny w bazie (działa też przy równoczesnych żądaniach). Klucze obce mają `ON DELETE RESTRICT`, więc egzemplarza ani czytelnika z historią wypożyczeń nie da się usunąć. Termin zwrotu można przedłużyć najwyżej raz i tylko przed jego upływem.
+Tabela `loan` łączy egzemplarz (`book_item`) z czytelnikiem (`reader`): zawiera datę wypożyczenia, termin zwrotu, datę zwrotu (pustą, dopóki książka nie wróci) i liczbę przedłużeń. Status „wypożyczony" nie jest zapisany w egzemplarzu, tylko wynika z tego, czy ma aktywne wypożyczenie, więc nie może się rozjechać z historią. Jeden egzemplarz ma co najwyżej jedno aktywne wypożyczenie, co pilnuje częściowy indeks unikalny w bazie (działa też przy równoczesnych żądaniach). Klucze obce mają `ON DELETE RESTRICT`, więc egzemplarza ani czytelnika z historią wypożyczeń nie da się usunąć. Termin zwrotu można przedłużyć najwyżej raz i tylko przed jego upływem. Liczba dostępnych egzemplarzy książki to liczba jej egzemplarzy minus aktywne wypożyczenia.
 
 ### Czytelnicy
 
@@ -97,7 +109,7 @@ Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-ma
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy i czytelników z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: REST API wypożyczeń, uwierzytelnianie (Spring Security), CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: uwierzytelnianie (Spring Security), CI w GitHub Actions.
 
 ## Licencja
 
