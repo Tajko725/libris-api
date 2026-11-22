@@ -1,0 +1,54 @@
+# Publikacja obrazu Dockera w GitHub Container Registry po wypchnięciu tagu wydania (np. v1.0.0).
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+# Adres obrazu pisany małymi literami (Docker nie przyjmuje wielkich liter w nazwie).
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: tajko725/libris-api
+
+jobs:
+  publish-image:
+    name: Publikacja obrazu
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # GITHUB_TOKEN dostaje tylko odczyt kodu i zapis pakietów.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Pobieram kod
+        uses: actions/checkout@v6
+
+      - name: Konfiguruję Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Loguję się do ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Z tagu v1.0.0 powstają tagi obrazu 1.0.0 i 1.0, a tag latest dostaje najnowsze wydanie.
+      - name: Wyznaczam tagi i etykiety obrazu
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Buduję i publikuję obraz
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
