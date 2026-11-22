@@ -203,4 +203,29 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.LoginRequest").exists())
                 .andExpect(jsonPath("$.components.schemas.LoginResponse").exists());
     }
+
+    /**
+     * Specyfikacja opisuje endpointy kont (bez usuwania), zmianę własnego hasła i nie ujawnia hasha hasła.
+     */
+    @Test
+    void shouldDocumentUserManagementEndpoints() throws Exception {
+        String users = "$.paths['/api/v1/users']";
+        String userById = "$.paths['/api/v1/users/{id}']";
+        String reset = "$.paths['/api/v1/users/{id}/password']";
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(users + ".post").exists())
+                .andExpect(jsonPath(users + ".get").exists())
+                .andExpect(jsonPath(userById + ".get").exists())
+                .andExpect(jsonPath(userById + ".put").exists())
+                .andExpect(jsonPath(userById + ".delete").doesNotExist())
+                .andExpect(jsonPath(reset + ".put.responses['204']").exists())
+                .andExpect(jsonPath(users + ".post.responses['409'].content['application/problem+json']").exists())
+                .andExpect(jsonPath(userById + ".put.responses['409']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/password'].put.responses['204']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/password'].put.responses['401']").exists())
+                .andExpect(jsonPath("$.components.schemas.UserResponse.properties.passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.UserResponse.properties.password").doesNotExist());
+    }
 }
