@@ -3,6 +3,7 @@ package pl.tajko.library.api.loan;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -43,6 +45,7 @@ import tools.jackson.databind.json.JsonMapper;
  * teście czyszczą wszystkie tabele, wypożyczenia jako pierwsze. Inaczej klucze obce zablokowałyby
  * czyszczenie w innych klasach testowych.
  */
+@WithMockUser(roles = "ADMIN")
 class LoanControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String BASE_URL = "/api/v1/loans";
@@ -72,7 +75,7 @@ class LoanControllerIntegrationTest extends AbstractIntegrationTest {
     /** Tworzy MockMvc, czyści tabele i przygotowuje książkę oraz aktywnego czytelnika. */
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         cleanUp();
         book = bookRepository.save(new Book("Czysty kod", "Robert C. Martin", 2008, ISBN_CLEAN_CODE, Genre.SCIENCE));
         anna = newReader("Anna", "anna.nowak@example.com", true);

@@ -1,5 +1,6 @@
 package pl.tajko.library.api;
 
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -28,7 +29,7 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
     /** Tworzy MockMvc dla pełnego kontekstu aplikacji. */
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
     /**
@@ -166,5 +167,40 @@ class OpenApiIntegrationTest extends AbstractIntegrationTest {
     void shouldServeSwaggerUi() throws Exception {
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * Specyfikacja opisuje uwierzytelnianie tokenem Bearer JWT, wymagane domyślnie dla wszystkich operacji.
+     */
+    @Test
+    void shouldDocumentBearerAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+                .andExpect(jsonPath("$.security[0].bearerAuth").exists());
+    }
+
+    /**
+     * Logowanie jest opisane (z błędami 400 i 401), a chronione operacje mają opisane odpowiedzi 401 i 403.
+     * Logowanie nie dostaje odpowiedzi 403, bo jest publiczne.
+     */
+    @Test
+    void shouldDocumentLoginAndSecurityResponses() throws Exception {
+        String login = "$.paths['/api/v1/auth/login'].post";
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(login).exists())
+                .andExpect(jsonPath(login + ".responses['200']").exists())
+                .andExpect(jsonPath(login + ".responses['400']").exists())
+                .andExpect(jsonPath(login + ".responses['401']").exists())
+                .andExpect(jsonPath(login + ".responses['403']").doesNotExist())
+                .andExpect(jsonPath(BOOKS + ".get.responses['401'].content['application/problem+json']").exists())
+                .andExpect(jsonPath(BOOKS + ".get.responses['403'].content['application/problem+json']").exists())
+                .andExpect(jsonPath(BOOK_BY_ID + ".delete.responses['403']").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginRequest").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse").exists());
     }
 }

@@ -1,6 +1,7 @@
 package pl.tajko.library.api.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -32,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Testy integracyjne API czytelników: żądania HTTP przez MockMvc do pełnego kontekstu Springa
  * z prawdziwą bazą PostgreSQL.
  */
+@WithMockUser(roles = "ADMIN")
 class ReaderControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String BASE_URL = "/api/v1/readers";
@@ -48,7 +51,7 @@ class ReaderControllerIntegrationTest extends AbstractIntegrationTest {
     /** Tworzy MockMvc i czyści tabelę, żeby testy były od siebie niezależne. */
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         readerRepository.deleteAllInBatch();
     }
 
