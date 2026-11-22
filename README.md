@@ -13,6 +13,7 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 - Maven (wrapper `mvnw`)
 - Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
 - springdoc-openapi 3.2.0 (dokumentacja OpenAPI i Swagger UI)
+- Spring Security Crypto (haszowanie haseł bcrypt przez `DelegatingPasswordEncoder`)
 
 ## Jak uruchomić
 
@@ -86,6 +87,15 @@ Zasady wypożyczeń ustawiam w `application.yml` (klucz `libris.loans`): okres w
 
 Odmawiam (`409`), gdy: egzemplarz jest już wypożyczony, czytelnik jest nieaktywny, ma książkę po terminie albo osiągnął limit. Termin zwrotu można przedłużyć tylko raz i tylko do dnia terminu włącznie. Kar za przetrzymanie nie ma. Stan wypożyczenia (`ACTIVE`, `OVERDUE`, `RETURNED`) wyliczam na bieżąco z terminu i daty zwrotu, a nie zapisuję w bazie. Czas pobieram ze wstrzykiwanego `Clock` (UTC), więc testy mogą ustawić dowolny moment. Limit wypożyczeń pilnuję blokadą wiersza czytelnika, więc dwa równoczesne żądania nie ominą limitu, a ten sam egzemplarz nie trafi do dwóch osób naraz dzięki indeksowi w bazie.
 
+## Pierwszy administrator
+
+Konta mają tylko pracownicy biblioteki (czytelnicy kont nie mają). Gdy tabela `app_user` jest pusta, przy starcie tworzę pierwszego administratora ze zmiennych środowiskowych:
+
+- `LIBRIS_ADMIN_USERNAME` (domyślnie `admin`),
+- `LIBRIS_ADMIN_PASSWORD` (od 12 znaków, najwyżej 72 bajty; bez tej zmiennej konto nie powstaje, a aplikacja tylko ostrzega w logu).
+
+W IntelliJ ustawiam hasło w Run → Edit Configurations → `LibrisApiApplication` → Modify options → Environment variables (`LIBRIS_ADMIN_PASSWORD=...`). W PowerShellu: `$env:LIBRIS_ADMIN_PASSWORD = "..."` przed `.\mvnw.cmd spring-boot:run`. Jeśli hasło jest za krótkie lub za długie, aplikacja nie wystartuje. Gdy w bazie jest już jakikolwiek użytkownik, zmienne ignoruję, więc restart nie zmienia hasła ani nie dodaje drugiego administratora.
+
 ## Testy
 
 `.\mvnw.cmd clean verify`. Testy integracyjne same uruchamiają PostgreSQL w kontenerze, więc potrzebuję działającego Dockera.
@@ -107,9 +117,13 @@ Tabela `loan` łączy egzemplarz (`book_item`) z czytelnikiem (`reader`): zawier
 
 Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-mail (unikalny, zapisywany małymi literami), opcjonalny telefon, datę rejestracji i status `active` (dezaktywowany czytelnik nie będzie mógł wypożyczać książek). Numer karty bibliotecznej w formacie `LB-000001` nadaje baza z sekwencji `reader_card_number_seq`, więc bibliotekarz go nie wpisuje, a numery się nie powtarzają. Poprawność danych pilnuję trzy razy: w encji, w walidacji API (dodam je w kolejnej funkcji) i w ograniczeniach bazy.
 
+### Użytkownicy
+
+Tabela `app_user` przechowuje konta pracowników: nazwę użytkownika (unikalna, 3-50 znaków: małe litery, cyfry, `.`, `_`, `-`), hash hasła, rolę (`LIBRARIAN` albo `ADMIN`), status `enabled` i datę utworzenia. Hasła nigdy nie zapisuję jawnie: używam `DelegatingPasswordEncoder` z bcrypt, więc w bazie jest wartość w formacie `{bcrypt}$2a$...`. Pilnuję tego w bazie ograniczeniem `CHECK`, więc nawet ręczny `INSERT` z jawnym hasłem lub `{noop}` zostanie odrzucony. Nazwę zapisuję małymi literami, więc `Jan` i `jan` to to samo konto. Hasło ma od 12 znaków i najwyżej 72 bajty, bo bcrypt nie bierze pod uwagę dalszych bajtów. Logowanie i uprawnienia ról dodam w kolejnej funkcji.
+
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Dalej: uwierzytelnianie (Spring Security), CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami i pierwszym administratorem. Dalej: logowanie JWT i uprawnienia ról (Spring Security), CI w GitHub Actions.
 
 ## Licencja
 
