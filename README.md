@@ -5,7 +5,7 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 ## Technologie
 
 - Java 25
-- Spring Boot 4.1.x (Spring Web, Spring Data JPA, Validation, Actuator)
+- Spring Boot 4.1.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
 - Spring Data JPA z Hibernate 7 (encje, repozytoria) i Jakarta Persistence
 - PostgreSQL 18 uruchamiany w Dockerze (Docker Compose, wolumen na dane)
 - Flyway (migracje schematu bazy)
@@ -13,13 +13,14 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 - Maven (wrapper `mvnw`)
 - Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
 - springdoc-openapi 3.2.0 (dokumentacja OpenAPI i Swagger UI)
-- Spring Security Crypto (haszowanie haseł bcrypt przez `DelegatingPasswordEncoder`)
+- Spring Security 7 z serwerem zasobów OAuth2 (tokeny JWT HS256) i haszowaniem haseł bcrypt (`DelegatingPasswordEncoder`)
 
 ## Jak uruchomić
 
 1. Uruchamiam bazę: `docker compose up -d`
 2. Uruchamiam aplikację: `.\mvnw.cmd spring-boot:run` (albo klasa `LibrisApiApplication` w IntelliJ)
 3. Sprawdzam stan: http://localhost:8080/actuator/health
+4. Loguję się (`POST /api/v1/auth/login`), bo pozostałe adresy API wymagają tokenu (szczegóły w sekcji „Uwierzytelnianie i uprawnienia”)
 
 Dane logowania do bazy w `docker-compose.yml` służą tylko do pracy lokalnej. Bazę mogę przeglądać w DBeaver (`localhost:5432`, baza `libris`).
 
@@ -87,6 +88,27 @@ Zasady wypożyczeń ustawiam w `application.yml` (klucz `libris.loans`): okres w
 
 Odmawiam (`409`), gdy: egzemplarz jest już wypożyczony, czytelnik jest nieaktywny, ma książkę po terminie albo osiągnął limit. Termin zwrotu można przedłużyć tylko raz i tylko do dnia terminu włącznie. Kar za przetrzymanie nie ma. Stan wypożyczenia (`ACTIVE`, `OVERDUE`, `RETURNED`) wyliczam na bieżąco z terminu i daty zwrotu, a nie zapisuję w bazie. Czas pobieram ze wstrzykiwanego `Clock` (UTC), więc testy mogą ustawić dowolny moment. Limit wypożyczeń pilnuję blokadą wiersza czytelnika, więc dwa równoczesne żądania nie ominą limitu, a ten sam egzemplarz nie trafi do dwóch osób naraz dzięki indeksowi w bazie.
 
+## Uwierzytelnianie i uprawnienia
+
+Konta mają tylko pracownicy biblioteki, czytelnicy ich nie mają. Loguję się przez `POST /api/v1/auth/login` (JSON z polami `username` i `password`) i dostaję token JWT ważny 60 minut (`expiresIn` podaję w sekundach). Token wysyłam w każdym żądaniu w nagłówku `Authorization: Bearer <token>`. W Swagger UI wklejam sam token pod przyciskiem **Authorize**. Odświeżania tokenów nie ma: po wygaśnięciu loguję się ponownie.
+
+| Rola | Co może |
+| --- | --- |
+| `LIBRARIAN` | czytać, dodawać i edytować książki, egzemplarze, czytelników oraz wypożyczenia (wypożyczenie, zwrot, przedłużenie), bez usuwania |
+| `ADMIN` | to samo co `LIBRARIAN`, a do tego usuwanie książek, egzemplarzy i czytelników oraz zarządzanie użytkownikami |
+
+Publiczne są tylko: logowanie, `/actuator/health`, Swagger UI i `/v3/api-docs`. Cała reszta wymaga tokenu. Brak ważnego tokenu daje `401`, a zbyt niska rola `403`, oba w formacie Problem Details. Wszystkie reguły dostępu są w jednym miejscu: `SecurityConfig`, a rola `ADMIN` dziedziczy uprawnienia `LIBRARIAN` (hierarchia ról).
+
+Jak to działa:
+
+- Token podpisuję algorytmem HS256 sekretem z zmiennej `LIBRIS_JWT_SECRET` (co najmniej 32 bajty). Domyślna wartość w `application.yml` jest tylko do pracy lokalnej, a aplikacja ostrzega o niej w logu. Na każdym innym środowisku ustawiam własny sekret, na przykład wygenerowany poleceniem `openssl rand -base64 48`.
+- Token zawiera nazwę użytkownika, rolę, wystawcę, czas wystawienia i wygaśnięcia oraz unikalny identyfikator. Walidację (podpis, ważność, wystawca) robi Spring Security, bez własnych filtrów.
+- Aplikacja jest bezstanowa: nie tworzę sesji ani ciasteczek, więc CSRF jest wyłączony.
+- Zła nazwa, złe hasło i wyłączone konto dają taką samą odpowiedź `401`, żeby nie dało się sprawdzić, które konta istnieją.
+- Rola jest zapisana w tokenie, więc zmiana roli albo wyłączenie konta działa dopiero po wygaśnięciu starego tokenu (najwyżej po 60 minutach).
+
+Świadomie pominąłem ochronę przed zgadywaniem haseł (ograniczanie liczby prób logowania, blokady kont), bo to projekt do nauki. W prawdziwym wdrożeniu dodałbym ją na bramie przed aplikacją albo w samej aplikacji.
+
 ## Pierwszy administrator
 
 Konta mają tylko pracownicy biblioteki (czytelnicy kont nie mają). Gdy tabela `app_user` jest pusta, przy starcie tworzę pierwszego administratora ze zmiennych środowiskowych:
@@ -119,11 +141,11 @@ Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-ma
 
 ### Użytkownicy
 
-Tabela `app_user` przechowuje konta pracowników: nazwę użytkownika (unikalna, 3-50 znaków: małe litery, cyfry, `.`, `_`, `-`), hash hasła, rolę (`LIBRARIAN` albo `ADMIN`), status `enabled` i datę utworzenia. Hasła nigdy nie zapisuję jawnie: używam `DelegatingPasswordEncoder` z bcrypt, więc w bazie jest wartość w formacie `{bcrypt}$2a$...`. Pilnuję tego w bazie ograniczeniem `CHECK`, więc nawet ręczny `INSERT` z jawnym hasłem lub `{noop}` zostanie odrzucony. Nazwę zapisuję małymi literami, więc `Jan` i `jan` to to samo konto. Hasło ma od 12 znaków i najwyżej 72 bajty, bo bcrypt nie bierze pod uwagę dalszych bajtów. Logowanie i uprawnienia ról dodam w kolejnej funkcji.
+Tabela `app_user` przechowuje konta pracowników: nazwę użytkownika (unikalna, 3-50 znaków: małe litery, cyfry, `.`, `_`, `-`), hash hasła, rolę (`LIBRARIAN` albo `ADMIN`), status `enabled` i datę utworzenia. Hasła nigdy nie zapisuję jawnie: używam `DelegatingPasswordEncoder` z bcrypt, więc w bazie jest wartość w formacie `{bcrypt}$2a$...`. Pilnuję tego w bazie ograniczeniem `CHECK`, więc nawet ręczny `INSERT` z jawnym hasłem lub `{noop}` zostanie odrzucony. Nazwę zapisuję małymi literami, więc `Jan` i `jan` to to samo konto. Hasło ma od 12 znaków i najwyżej 72 bajty, bo bcrypt nie bierze pod uwagę dalszych bajtów. Logowanie opisuję w sekcji „Uwierzytelnianie i uprawnienia”.
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami i pierwszym administratorem. Dalej: logowanie JWT i uprawnienia ról (Spring Security), CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. Dalej: API do zarządzania użytkownikami, CI w GitHub Actions.
 
 ## Licencja
 

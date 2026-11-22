@@ -29,6 +29,12 @@ libris:
     admin:
       username: ${LIBRIS_ADMIN_USERNAME:admin}
       password: ${LIBRIS_ADMIN_PASSWORD:}
+    # Tokeny JWT (HS256). Sekret ma mieć co najmniej 32 bajty. Wartość domyślna służy tylko do pracy lokalnej:
+    # na każdym innym środowisku ustawiam własny sekret w zmiennej LIBRIS_JWT_SECRET.
+    jwt:
+      secret: ${LIBRIS_JWT_SECRET:libris-dev-only-secret-change-me-0123456789}
+      expiration: 60m
+      issuer: libris-api
 
 management:
   endpoints:
@@ -43,3 +49,4 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     display-request-duration: true
+    persist-authorization: true
