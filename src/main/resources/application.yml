@@ -23,6 +23,13 @@ libris:
     max-active-per-reader: 5
     renewal-days: 14
 
+  security:
+    # Pierwszy administrator jest tworzony przy starcie tylko wtedy, gdy w bazie nie ma żadnego użytkownika
+    # i ustawiono hasło. Hasło podaję zmienną środowiskową, nigdy w repozytorium.
+    admin:
+      username: ${LIBRIS_ADMIN_USERNAME:admin}
+      password: ${LIBRIS_ADMIN_PASSWORD:}
+
 management:
   endpoints:
     web:
