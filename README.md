@@ -133,6 +133,45 @@ Konta mają tylko pracownicy biblioteki (czytelnicy kont nie mają). Gdy tabela 
 
 W IntelliJ ustawiam hasło w Run → Edit Configurations → `LibrisApiApplication` → Modify options → Environment variables (`LIBRIS_ADMIN_PASSWORD=...`). W PowerShellu: `$env:LIBRIS_ADMIN_PASSWORD = "..."` przed `.\mvnw.cmd spring-boot:run`. Jeśli hasło jest za krótkie lub za długie, aplikacja nie wystartuje. Gdy w bazie jest już jakikolwiek użytkownik, zmienne ignoruję, więc restart nie zmienia hasła ani nie dodaje drugiego administratora.
 
+## Konfiguracja
+
+Całą konfigurację podaję zmiennymi środowiskowymi, więc ten sam obraz działa na każdym środowisku. Wartości domyślne w `application.yml` służą tylko do pracy lokalnej.
+
+| Zmienna | Znaczenie | Domyślnie |
+| --- | --- | --- |
+| `DB_URL` | adres JDBC bazy PostgreSQL | `jdbc:postgresql://localhost:5432/libris` |
+| `DB_USER`, `DB_PASSWORD` | dane logowania do bazy | `libris` / `libris` |
+| `LIBRIS_JWT_SECRET` | sekret podpisujący tokeny (co najmniej 32 bajty) | wartość tylko do pracy lokalnej, aplikacja ostrzega o niej w logu |
+| `LIBRIS_ADMIN_USERNAME` | nazwa pierwszego administratora | `admin` |
+| `LIBRIS_ADMIN_PASSWORD` | hasło pierwszego administratora (bez niego konto nie powstaje) | brak |
+
+Na środowisku innym niż lokalne:
+
+- ustawiam własny, losowy sekret JWT i silne hasło bazy,
+- wyłączam Swagger UI i dokumentację OpenAPI, jeśli API nie ma być opisane publicznie (właściwości `springdoc.swagger-ui.enabled=false` i `springdoc.api-docs.enabled=false`); aplikacja przypomina o tym ostrzeżeniami w logu przy starcie,
+- wystawiam aplikację za proxy z HTTPS, bo tokeny i hasła nie powinny płynąć niezaszyfrowane,
+- pamiętam, że nie mam ochrony przed zgadywaniem haseł (opisałem to w sekcji „Uwierzytelnianie i uprawnienia”).
+
+Pozostałe ustawienia (limity wypożyczeń, czas ważności tokenu) są w `application.yml`.
+
+## Architektura
+
+Kod jest podzielony na pakiety według zagadnień (`pl.tajko.library.api`): `book` (książki i egzemplarze), `reader`, `loan`, `user`, `security`, `config` i `common` (wspólne klasy, np. obsługa błędów i stronicowanie). W każdym z pakietów zagadnień warstwy są takie same:
+
+- **kontroler** (`*Controller`) przyjmuje żądanie HTTP i zwraca DTO, bez logiki biznesowej,
+- **serwis** (`*Service`) zawiera reguły biznesowe i granice transakcji,
+- **repozytorium** (`*Repository`, Spring Data JPA, zapytania z filtrami w `*Specifications`) odpowiada za dostęp do danych,
+- **encja** to model bazy, a **DTO** (`*Request`, `*Response`) to kształt danych w API, więc encje nie trafiają bezpośrednio do odpowiedzi API.
+
+Kilka decyzji, które warto znać:
+
+- **Schemat bazy tworzy Flyway**, a Hibernate tylko go sprawdza (`ddl-auto: validate`). Każda zmiana schematu to nowa migracja, nigdy edycja starej.
+- **Poprawność danych pilnuję w trzech miejscach**: w walidacji API, w encji i w ograniczeniach bazy (`CHECK`, indeksy unikalne), więc nawet ręczny zapis do bazy nie złamie reguł.
+- **Równoczesne zmiany**: encje mają pole `version` (blokada optymistyczna, nieaktualna wersja daje `409`), a przy ochronie ostatniego administratora używam blokady pesymistycznej wierszy.
+- **Błędy** zwracam w jednym formacie Problem Details (RFC 9457) z jednego miejsca (`ApiExceptionHandler`).
+- **Bezpieczeństwo** jest w całości w pakiecie `security`, a reguły dostępu w jednym pliku (`SecurityConfig`).
+- **Czas** pobieram z wstrzykiwanego `Clock`, dzięki czemu reguły zależne od dat (terminy zwrotu) da się testować.
+
 ## Testy
 
 `.\mvnw.cmd clean verify`. Testy integracyjne same uruchamiają PostgreSQL w kontenerze, więc potrzebuję działającego Dockera.
@@ -190,11 +229,20 @@ Do codziennej pracy w IntelliJ nadal wystarczy sama baza (`docker compose up -d`
 Samą aplikację mogę też uruchomić poleceniem `docker run` na już działającej bazie: `docker build -t libris-api .`, a potem
 `docker run --rm -p 8081:8080 -e DB_URL=jdbc:postgresql://host.docker.internal:5432/libris -e DB_USER=libris -e DB_PASSWORD=libris -e LIBRIS_JWT_SECRET=lokalny-sekret-do-testow-co-najmniej-32-znaki -e LIBRIS_ADMIN_PASSWORD=lokalne-haslo-admina-123 libris-api`.
 
-Publikację obrazu w ghcr.io dodam razem z wydaniem 1.0.0.
+### Gotowy obraz z wydania
+
+Każde wydanie (tag `vX.Y.Z`) publikuję jako obraz w GitHub Container Registry (workflow `Release`, `.github/workflows/release.yml`), więc aplikację da się uruchomić bez budowania. Obraz dostaje tagi z numerem wydania (`1.0.0`, `1.0`), a `latest` wskazuje najnowsze:
+
+```
+docker pull ghcr.io/tajko725/libris-api:1.0.0
+```
+
+Uruchamiam go tak samo jak lokalnie zbudowany obraz (zmienne środowiskowe z tabeli w sekcji „Konfiguracja”), tylko z nazwą `ghcr.io/tajko725/libris-api:1.0.0` zamiast `libris-api`.
+
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Dalej: wydanie 1.0.0 z publikacją obrazu.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Workflow publikujący obraz w ghcr.io po tagu wydania. Dalej: wydanie 1.0.0.
 
 ## Licencja
 
