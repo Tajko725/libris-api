@@ -1,0 +1,13 @@
+# Do kontekstu budowania nie trafia nic, co nie jest potrzebne do zbudowania aplikacji.
+.git
+.github
+.idea
+*.iml
+target/
+http/
+docker-compose.yml
+Dockerfile
+.dockerignore
+README.md
+LICENSE
+HELP.md
