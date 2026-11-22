@@ -1,5 +1,7 @@
 # Lokalne środowisko deweloperskie: baza PostgreSQL z trwałym wolumenem.
 # Dane logowania służą wyłącznie do pracy lokalnej.
+#   docker compose up -d                      -> tylko baza (do pracy w IntelliJ)
+#   docker compose --profile app up --build   -> baza i aplikacja w kontenerach
 services:
   db:
     image: postgres:18
@@ -18,6 +20,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Aplikacja w kontenerze. Uruchamia się tylko z profilem "app", więc zwykłe
+  # "docker compose up -d" nadal startuje samą bazę (i nie zajmuje portu 8080).
+  api:
+    profiles: ["app"]
+    build: .
+    container_name: libris-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # W sieci Compose baza jest dostępna pod nazwą usługi "db".
+      DB_URL: jdbc:postgresql://db:5432/libris
+      DB_USER: libris
+      DB_PASSWORD: libris
+      # Wartości wyłącznie do pracy lokalnej.
+      LIBRIS_JWT_SECRET: lokalny-sekret-do-testow-co-najmniej-32-znaki
+      LIBRIS_ADMIN_PASSWORD: lokalne-haslo-admina-123
+    ports:
+      # Gdy port 8080 jest zajęty, ustawiam inny: API_PORT=8081
+      - "${API_PORT:-8080}:8080"
 
 volumes:
   libris-db-data:

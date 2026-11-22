@@ -1,5 +1,7 @@
 # Libris API
 
+[![CI](https://github.com/Tajko725/libris-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Tajko725/libris-api/actions/workflows/ci.yml)
+
 REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-cli](https://github.com/Tajko725/libris-cli), potem [libris-core](https://github.com/Tajko725/libris-core), a teraz aplikacja webowa z bazą danych PostgreSQL. Projekt przygotowuję, żeby pokazać swój poziom w Javie i Spring Boot.
 
 ## Technologie
@@ -156,9 +158,43 @@ Tabela `reader` przechowuje czytelników biblioteki: imię, nazwisko, adres e-ma
 
 Tabela `app_user` przechowuje konta pracowników: nazwę użytkownika (unikalna, 3-50 znaków: małe litery, cyfry, `.`, `_`, `-`), hash hasła, rolę (`LIBRARIAN` albo `ADMIN`), status `enabled` i datę utworzenia. Hasła nigdy nie zapisuję jawnie: używam `DelegatingPasswordEncoder` z bcrypt, więc w bazie jest wartość w formacie `{bcrypt}$2a$...`. Pilnuję tego w bazie ograniczeniem `CHECK`, więc nawet ręczny `INSERT` z jawnym hasłem lub `{noop}` zostanie odrzucony. Nazwę zapisuję małymi literami, więc `Jan` i `jan` to to samo konto. Hasło ma od 12 znaków i najwyżej 72 bajty, bo bcrypt nie bierze pod uwagę dalszych bajtów. Logowanie opisuję w sekcji „Uwierzytelnianie i uprawnienia”.
 
+## CI i Docker
+
+### CI
+
+Każdy push do `develop` i `main` oraz każdy pull request do tych gałęzi uruchamia w GitHub Actions workflow `CI` (`.github/workflows/ci.yml`). Składa się z dwóch zadań: `Build i testy` wykonuje `./mvnw verify` (Testcontainers korzysta z Dockera dostępnego na runnerze), a `Obraz Dockera` sprawdza, czy obraz się buduje. Nowy przebieg dla tej samej gałęzi anuluje poprzedni, a gdy testy zawiodą, raporty z `target/surefire-reports` i `target/failsafe-reports` zapisuję jako artefakt przebiegu. Wersje zależności i akcji pilnuje Dependabot (`.github/dependabot.yml`), a jego pull requesty trafiają do `develop`.
+
+### Docker w skrócie
+
+- **Obraz** (image) to gotowa do uruchomienia aplikacja razem z tym, czego potrzebuje: środowiskiem Javy 25 i zbudowanym JAR-em. Nie ma w nim kodu źródłowego ani Mavena. Przepis na obraz to `Dockerfile`.
+- **Kontener** to działająca instancja obrazu (obraz jest jak plik `.exe`, kontener jak uruchomiony proces).
+- **Baza jest osobnym kontenerem** (`postgres:18`), bo PostgreSQL to osobny program, z którym aplikacja się łączy. Aplikacja dostaje adres i dane logowania do bazy ze zmiennych środowiskowych (`DB_URL`, `DB_USER`, `DB_PASSWORD`).
+- **Docker Compose** (`docker-compose.yml`) opisuje, jakie kontenery uruchamiam razem, więc zamiast długich poleceń wystarczy jedno.
+
+Obraz budowany jest wieloetapowo: JAR powstaje w obrazie z JDK 25, a uruchamiam go w obrazie z samym JRE jako zwykły użytkownik (nie root). Aplikacja jest rozpakowana na warstwy, więc zmiana kodu nie przebudowuje warstwy z zależnościami.
+
+### Uruchomienie w kontenerach
+
+Jedną komendą uruchamiam bazę i aplikację (pierwsze budowanie obrazu trwa kilka minut):
+
+```
+docker compose --profile app up --build
+```
+
+API jest wtedy dostępne pod `http://localhost:8080` (Swagger UI: `/swagger-ui.html`, stan aplikacji: `/actuator/health`). Pierwszy administrator ma login `admin` i hasło z `docker-compose.yml` (wartości służą tylko do pracy lokalnej). Jeśli port 8080 jest zajęty, ustawiam inny, np. w PowerShellu: `$env:API_PORT=8081; docker compose --profile app up --build`.
+
+Zatrzymanie: `Ctrl+C`, a razem z usunięciem kontenerów: `docker compose --profile app down` (dane bazy zostają w wolumenie).
+
+Do codziennej pracy w IntelliJ nadal wystarczy sama baza (`docker compose up -d`), bo profil `app` jest wtedy wyłączony i port 8080 zostaje wolny dla aplikacji uruchamianej z IDE.
+
+Samą aplikację mogę też uruchomić poleceniem `docker run` na już działającej bazie: `docker build -t libris-api .`, a potem
+`docker run --rm -p 8081:8080 -e DB_URL=jdbc:postgresql://host.docker.internal:5432/libris -e DB_USER=libris -e DB_PASSWORD=libris -e LIBRIS_JWT_SECRET=lokalny-sekret-do-testow-co-najmniej-32-znaki -e LIBRIS_ADMIN_PASSWORD=lokalne-haslo-admina-123 libris-api`.
+
+Publikację obrazu w ghcr.io dodam razem z wydaniem 1.0.0.
+
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. Dalej: CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Dalej: wydanie 1.0.0 z publikacją obrazu.
 
 ## Licencja
 
