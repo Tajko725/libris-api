@@ -138,3 +138,49 @@ Authorization: Bearer {{token}}
 ### Zwróć książkę
 POST {{host}}/api/v1/loans/1/return
 Authorization: Bearer {{token}}
+
+
+### Zmień własne hasło
+PUT {{host}}/api/v1/auth/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "Haslo-startowe-123",
+  "newPassword": "Nowe-dlugie-haslo-1"
+}
+
+### Użytkownicy (tylko ADMIN): utwórz konto
+POST {{host}}/api/v1/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "jan.kowalski",
+  "password": "Bardzo-dlugie-haslo-1",
+  "role": "LIBRARIAN"
+}
+
+### Użytkownicy: lista z filtrami
+GET {{host}}/api/v1/users?role=LIBRARIAN&enabled=true&search=jan
+Authorization: Bearer {{token}}
+
+### Użytkownicy: zmień rolę lub wyłącz konto (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/users/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "LIBRARIAN",
+  "enabled": false,
+  "version": 0
+}
+
+### Użytkownicy: zresetuj hasło
+PUT {{host}}/api/v1/users/2/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "newPassword": "Nowe-dlugie-haslo-2"
+}
