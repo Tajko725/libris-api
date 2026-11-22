@@ -12,8 +12,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -24,10 +22,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * w nagłówku {@code Authorization: Bearer ...}. CSRF jest wyłączony, bo przeglądarka nie dołącza tokenu
  * automatycznie (jak robi to z ciasteczkami).
  *
+ * <p>Rola użytkownika pochodzi z bazy i jest sprawdzana przy każdym żądaniu ({@link DatabaseJwtAuthenticationConverter}),
+ * więc zmiana roli i wyłączenie konta działają od razu.
+ *
  * <p>Reguły (pierwsza pasująca wygrywa):
  * <ul>
  *   <li>publiczne: logowanie, {@code /actuator/health}, Swagger UI i {@code /v3/api-docs},</li>
- *   <li>{@code /api/v1/users/**}: tylko {@code ADMIN},</li>
+ *   <li>{@code /api/v1/users/**} (zarządzanie kontami): tylko {@code ADMIN},</li>
  *   <li>{@code DELETE /api/v1/**}: tylko {@code ADMIN},</li>
  *   <li>pozostałe {@code /api/v1/**} (odczyt, dodawanie, edycja, wypożyczenia): {@code LIBRARIAN} i {@code ADMIN},</li>
  *   <li>cała reszta: wymaga tokenu.</li>
@@ -66,31 +67,15 @@ public class SecurityConfig {
     }
 
     /**
-     * Zamienia rolę z tokenu (właściwość {@code roles}, np. {@code ADMIN}) na uprawnienie
-     * {@code ROLE_ADMIN} rozpoznawane przez {@code hasRole}.
-     *
-     * @return konwerter tokenu na uwierzytelnienie
-     */
-    @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
-        authorities.setAuthoritiesClaimName(TokenService.ROLES_CLAIM);
-        authorities.setAuthorityPrefix("ROLE_");
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authorities);
-        return converter;
-    }
-
-    /**
      * Łańcuch filtrów z regułami dostępu i obsługą tokenów JWT.
      *
      * @param http      konfigurator zabezpieczeń
-     * @param converter konwerter tokenu na uwierzytelnienie
+     * @param converter konwerter tokenu na uwierzytelnienie (rola z bazy, nie z tokenu)
      * @return łańcuch filtrów
      * @throws Exception gdy konfiguracja jest niepoprawna
      */
     @Bean
-    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JwtAuthenticationConverter converter)
+    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, DatabaseJwtAuthenticationConverter converter)
             throws Exception {
         ProblemJsonSecurityHandler problemHandler = new ProblemJsonSecurityHandler();
         http
@@ -108,7 +93,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/**").hasRole(LIBRARIAN)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter::convert))
                         .authenticationEntryPoint(problemHandler)
                         .accessDeniedHandler(problemHandler))
                 .exceptionHandling(handling -> handling

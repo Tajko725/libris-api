@@ -128,9 +128,14 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
     }
 
     private String mint(JwtEncoder encoder, String issuer, Instant issuedAt, Instant expiresAt, List<String> roles) {
+        return mint(encoder, issuer, "jan.bibliotekarz", issuedAt, expiresAt, roles);
+    }
+
+    private String mint(JwtEncoder encoder, String issuer, String subject, Instant issuedAt, Instant expiresAt,
+                        List<String> roles) {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
-                .subject("jan.bibliotekarz")
+                .subject(subject)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .claim(TokenService.ROLES_CLAIM, roles)
@@ -304,14 +309,60 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Poprawny token z nieznaną rolą daje 403 (zalogowany, ale bez uprawnień).
+     * Rola zapisana w tokenie nie ma znaczenia: uprawnienia wynikają z konta w bazie. Token z rolą ADMIN
+     * dla bibliotekarza nie pozwala usuwać, a token z nieznaną rolą nadal daje uprawnienia bibliotekarza.
      */
     @Test
-    void shouldForbidTokenWithUnknownRole() throws Exception {
-        mockMvc.perform(get("/api/v1/books").header("Authorization", bearer(mintValid(List.of("ROOT")))))
+    void shouldIgnoreRoleClaimInToken() throws Exception {
+        long bookId = createBook(adminToken());
+
+        mockMvc.perform(delete("/api/v1/books/" + bookId)
+                        .header("Authorization", bearer(mintValid(List.of("ADMIN")))))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Brak uprawnień"));
+        mockMvc.perform(get("/api/v1/books").header("Authorization", bearer(mintValid(List.of("ROOT")))))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Poprawnie podpisany token konta, którego nie ma w bazie, jest odrzucany.
+     */
+    @Test
+    void shouldRejectValidTokenOfUnknownUser() throws Exception {
+        Instant now = Instant.now();
+        String token = mint(jwtEncoder, "libris-api", "duch.nieistnieje", now, now.plus(1, ChronoUnit.HOURS),
+                List.of("ADMIN"));
+
+        mockMvc.perform(get("/api/v1/books").header("Authorization", bearer(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", containsString("invalid_token")));
+    }
+
+    /**
+     * Token konta usuniętego z bazy po zalogowaniu przestaje działać od razu.
+     */
+    @Test
+    void shouldRejectTokenOfDeletedUser() throws Exception {
+        String token = librarianToken();
+        userRepository.delete(userRepository.findByUsername("jan.bibliotekarz").orElseThrow());
+        userRepository.flush();
+
+        mockMvc.perform(get("/api/v1/books").header("Authorization", bearer(token)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Za długie hasło przy logowaniu (ponad 72 bajty) daje 401, a nie błąd serwera.
+     */
+    @Test
+    void shouldReturnUnauthorizedForOverlongPasswordOnLogin() throws Exception {
+        for (String password : List.of("x".repeat(100), "ą".repeat(60))) {
+            mockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginBody("jan.bibliotekarz", password)))
+                    .andExpect(status().isUnauthorized());
+        }
     }
 
     /**
@@ -368,20 +419,21 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Rola z tokenu decyduje o uprawnieniach: token bibliotekarza nie pozwala na usuwanie nawet
-     * wtedy, gdy konto w bazie zostało w międzyczasie awansowane (rola odświeża się po ponownym logowaniu).
+     * Rola pochodzi z bazy: po awansie konta już wydany token bibliotekarza od razu pozwala usuwać.
      */
     @Test
-    void shouldUseRoleFromTokenNotFromDatabase() throws Exception {
+    void shouldApplyPromotionToAlreadyIssuedToken() throws Exception {
         String oldToken = librarianToken();
-        AppUser user = userRepository.findByUsername("jan.bibliotekarz").orElseThrow();
-        user.setRole(Role.ADMIN);
-        userRepository.saveAndFlush(user);
         long bookId = createBook(adminToken());
 
         mockMvc.perform(delete("/api/v1/books/" + bookId).header("Authorization", bearer(oldToken)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(delete("/api/v1/books/" + bookId).header("Authorization", bearer(login("jan.bibliotekarz", PASSWORD))))
+
+        AppUser user = userRepository.findByUsername("jan.bibliotekarz").orElseThrow();
+        user.setRole(Role.ADMIN);
+        userRepository.saveAndFlush(user);
+
+        mockMvc.perform(delete("/api/v1/books/" + bookId).header("Authorization", bearer(oldToken)))
                 .andExpect(status().isNoContent());
     }
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -217,5 +218,29 @@ class AppUserRepositoryIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT username FROM app_user WHERE id = ?", String.class, saved.getId()))
                 .isEqualTo("jan.kowalski");
+    }
+
+    /**
+     * Zapytanie z blokadą zwraca tylko aktywnych administratorów (bez wyłączonych i bibliotekarzy),
+     * posortowanych po identyfikatorze.
+     */
+    @Test
+    void shouldReturnOnlyEnabledAdminsOrderedById() {
+        int before = userRepository.findEnabledAdminsForUpdate().size();
+        userRepository.save(newUser("admin.pierwszy", Role.ADMIN));
+        AppUser disabledAdmin = newUser("admin.wylaczony", Role.ADMIN);
+        disabledAdmin.setEnabled(false);
+        userRepository.save(disabledAdmin);
+        userRepository.save(newUser("bibliotekarz.jeden", Role.LIBRARIAN));
+        userRepository.save(newUser("admin.drugi", Role.ADMIN));
+        userRepository.flush();
+
+        List<AppUser> admins = userRepository.findEnabledAdminsForUpdate();
+
+        assertThat(admins).hasSize(before + 2);
+        assertThat(admins).extracting(AppUser::getUsername)
+                .contains("admin.pierwszy", "admin.drugi")
+                .doesNotContain("admin.wylaczony", "bibliotekarz.jeden");
+        assertThat(admins).extracting(AppUser::getId).isSorted();
     }
 }

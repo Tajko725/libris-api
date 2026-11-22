@@ -102,12 +102,25 @@ Publiczne są tylko: logowanie, `/actuator/health`, Swagger UI i `/v3/api-docs`.
 Jak to działa:
 
 - Token podpisuję algorytmem HS256 sekretem z zmiennej `LIBRIS_JWT_SECRET` (co najmniej 32 bajty). Domyślna wartość w `application.yml` jest tylko do pracy lokalnej, a aplikacja ostrzega o niej w logu. Na każdym innym środowisku ustawiam własny sekret, na przykład wygenerowany poleceniem `openssl rand -base64 48`.
-- Token zawiera nazwę użytkownika, rolę, wystawcę, czas wystawienia i wygaśnięcia oraz unikalny identyfikator. Walidację (podpis, ważność, wystawca) robi Spring Security, bez własnych filtrów.
+- Token zawiera nazwę użytkownika, wystawcę, czas wystawienia i wygaśnięcia, unikalny identyfikator oraz rolę (informacyjnie). Podpis, ważność i wystawcę sprawdza Spring Security, bez własnych filtrów.
 - Aplikacja jest bezstanowa: nie tworzę sesji ani ciasteczek, więc CSRF jest wyłączony.
 - Zła nazwa, złe hasło i wyłączone konto dają taką samą odpowiedź `401`, żeby nie dało się sprawdzić, które konta istnieją.
-- Rola jest zapisana w tokenie, więc zmiana roli albo wyłączenie konta działa dopiero po wygaśnięciu starego tokenu (najwyżej po 60 minutach).
+- Przy każdym żądaniu sprawdzam w bazie, czy konto z tokenu istnieje i jest aktywne, a uprawnienia biorę z aktualnej roli w bazie, a nie z tokenu (`DatabaseJwtAuthenticationConverter`). Dzięki temu wyłączenie konta albo zmiana roli działa od razu, nawet na już wydanym tokenie. Kosztuje to jedno zapytanie po unikalnej nazwie na żądanie. Zmiana hasła nie unieważnia wydanych tokenów, więc przy podejrzeniu włamania wyłączam konto.
 
 Świadomie pominąłem ochronę przed zgadywaniem haseł (ograniczanie liczby prób logowania, blokady kont), bo to projekt do nauki. W prawdziwym wdrożeniu dodałbym ją na bramie przed aplikacją albo w samej aplikacji.
+
+## Zarządzanie użytkownikami
+
+Adres bazowy: `http://localhost:8080/api/v1/users` (tylko rola `ADMIN`). Kont nie usuwam, tylko wyłączam, żeby nie tracić śladu po tym, kto istniał.
+
+- `POST /api/v1/users`: tworzę konto (nazwa, hasło, rola).
+- `GET /api/v1/users`: lista ze stronicowaniem, sortowaniem (`id`, `username`, `role`, `enabled`, `createdAt`) oraz filtrami `search` (fragment nazwy), `role` i `enabled`.
+- `GET /api/v1/users/{id}`: jedno konto. Hasło ani jego hash nigdy nie są zwracane.
+- `PUT /api/v1/users/{id}`: zmieniam rolę i status konta. Wymaga `version` z ostatniego odczytu (nieaktualna wersja daje `409`, tak samo jak przy czytelnikach).
+- `PUT /api/v1/users/{id}/password`: administrator ustawia nowe hasło bez znajomości starego.
+- `PUT /api/v1/auth/password`: każdy zalogowany zmienia własne hasło (podaje aktualne i nowe, które musi różnić się od obecnego).
+
+Nie wolno zdegradować ani wyłączyć ostatniego aktywnego administratora (`409`). Na czas zmiany blokuję wiersze aktywnych administratorów, więc dwóch administratorów, którzy jednocześnie odbierają sobie uprawnienia, nie zostawi aplikacji bez administratora: jedna zmiana przechodzi, druga dostaje `409`. Administrator może zdegradować lub wyłączyć samego siebie, o ile jest inny aktywny administrator.
 
 ## Pierwszy administrator
 
@@ -145,7 +158,7 @@ Tabela `app_user` przechowuje konta pracowników: nazwę użytkownika (unikalna,
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. Dalej: API do zarządzania użytkownikami, CI w GitHub Actions.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. Dalej: CI w GitHub Actions.
 
 ## Licencja
 
