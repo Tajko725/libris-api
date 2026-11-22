@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -92,6 +93,20 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         LOG.warn("Naruszenie ograniczenia bazy danych ({})", ex.getMostSpecificCause().getClass().getSimpleName());
         return problem(HttpStatus.CONFLICT, "Konflikt danych",
                 "Dane naruszają ograniczenia bazy (np. taki rekord już istnieje). Sprawdź dane i spróbuj ponownie.");
+    }
+
+    /**
+     * Zamienia nieudane logowanie na odpowiedź 401. Komunikat jest taki sam dla każdej przyczyny
+     * (zła nazwa, złe hasło, konto wyłączone), żeby nie ujawniać, które konta istnieją. Nazwy
+     * użytkownika nie zapisuję w logu, bo ktoś mógł wpisać w to pole hasło.
+     *
+     * @param ex zgłoszony wyjątek
+     * @return opis błędu
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    ProblemDetail handleAuthentication(AuthenticationException ex) {
+        LOG.info("Nieudana próba logowania ({})", ex.getClass().getSimpleName());
+        return problem(HttpStatus.UNAUTHORIZED, "Nieudane logowanie", "Niepoprawna nazwa użytkownika lub hasło.");
     }
 
     /**
