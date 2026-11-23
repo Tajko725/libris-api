@@ -7,14 +7,14 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 ## Technologie
 
 - Java 25
-- Spring Boot 4.1.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
+- Spring Boot 4.2.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
 - Spring Data JPA z Hibernate 7 (encje, repozytoria) i Jakarta Persistence
 - PostgreSQL 18 uruchamiany w Dockerze (Docker Compose, wolumen na dane)
 - Flyway (migracje schematu bazy)
 - JUnit i Testcontainers (testy z prawdziwą bazą)
 - Maven (wrapper `mvnw`)
-- Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
-- springdoc-openapi 3.2.0 (dokumentacja OpenAPI i Swagger UI)
+- Jackson 3 (wersja zarządzana przez Spring Boot)
+- springdoc-openapi 3.2.1 (dokumentacja OpenAPI i Swagger UI)
 - Spring Security 7 z serwerem zasobów OAuth2 (tokeny JWT HS256) i haszowaniem haseł bcrypt (`DelegatingPasswordEncoder`)
 
 ## Jak uruchomić
