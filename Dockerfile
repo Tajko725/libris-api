@@ -1,17 +1,18 @@
 # syntax=docker/dockerfile:1
 
 # Etap 1: buduję JAR i rozpakowuję go na warstwy (zależności zmieniają się rzadziej niż kod).
-FROM eclipse-temurin:25-jdk AS builder
+# Używam obrazu z gotowym Mavenem i JDK 25, więc build nie pobiera samego Mavena z internetu
+# (wrapper mvnw pobierał go z Maven Central, które potrafi odrzucić żądanie kodem 429).
+FROM maven:3-eclipse-temurin-25 AS builder
 WORKDIR /builder
 
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
+COPY pom.xml ./
 COPY src/ src/
 
 # Testy pomijam, bo wykonuje je wcześniej workflow CI (./mvnw verify).
 # Cache Mavena przyspiesza kolejne budowania i nie trafia do obrazu.
 RUN --mount=type=cache,target=/root/.m2 \
-    chmod +x mvnw && ./mvnw -B -DskipTests package
+    mvn -B -DskipTests package
 
 # Kopiuję JAR jako application.jar: narzędzie extract nadaje wyodrębnionemu plikowi tę samą nazwę,
 # a ENTRYPOINT uruchamia właśnie application.jar.
@@ -23,8 +24,8 @@ FROM eclipse-temurin:25-jre
 WORKDIR /application
 
 # Aplikacja działa jako zwykły użytkownik, nie jako root.
-RUN groupadd --system --gid 10001 libris \
-    && useradd --system --uid 10001 --gid libris --no-create-home libris
+RUN groupadd --gid 10001 libris \
+    && useradd --uid 10001 --gid libris --no-create-home --shell /usr/sbin/nologin libris
 
 # Każdy COPY to osobna warstwa: przy zmianie kodu Docker zmienia tylko ostatnią.
 COPY --from=builder --chown=libris:libris /builder/extracted/dependencies/ ./
