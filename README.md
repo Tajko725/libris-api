@@ -242,7 +242,7 @@ Uruchamiam go tak samo jak lokalnie zbudowany obraz (zmienne środowiskowe z tab
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Workflow publikujący obraz w ghcr.io po tagu wydania. Dalej: wydanie 1.0.0.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Wydanie 1.0.0 z obrazem Dockera publikowanym w ghcr.io.
 
 ## Licencja
 
