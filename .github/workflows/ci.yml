@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Pobieram kod
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Instaluję Javę 25
         uses: actions/setup-java@v6
@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Pobieram kod
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Sprawdzam tylko, czy obraz się buduje. Publikację do ghcr.io dodam przy wydaniu 1.0.0.
       - name: Buduję obraz
