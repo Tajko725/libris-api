@@ -210,7 +210,7 @@ Każdy push do `develop` i `main` oraz każdy pull request do tych gałęzi uruc
 - **Baza jest osobnym kontenerem** (`postgres:18`), bo PostgreSQL to osobny program, z którym aplikacja się łączy. Aplikacja dostaje adres i dane logowania do bazy ze zmiennych środowiskowych (`DB_URL`, `DB_USER`, `DB_PASSWORD`).
 - **Docker Compose** (`docker-compose.yml`) opisuje, jakie kontenery uruchamiam razem, więc zamiast długich poleceń wystarczy jedno.
 
-Obraz budowany jest wieloetapowo: JAR powstaje w obrazie z JDK 25, a uruchamiam go w obrazie z samym JRE jako zwykły użytkownik (nie root). Aplikacja jest rozpakowana na warstwy, więc zmiana kodu nie przebudowuje warstwy z zależnościami.
+Obraz budowany jest wieloetapowo: JAR powstaje w obrazie z Mavenem i JDK 25, a uruchamiam go w obrazie z samym JRE jako zwykły użytkownik (nie root). Aplikacja jest rozpakowana na warstwy, więc zmiana kodu nie przebudowuje warstwy z zależnościami.
 
 ### Uruchomienie w kontenerach
 
@@ -242,7 +242,7 @@ Uruchamiam go tak samo jak lokalnie zbudowany obraz (zmienne środowiskowe z tab
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Workflow publikujący obraz w ghcr.io po tagu wydania. Dalej: wydanie 1.0.0.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Wydanie 1.0.0 z obrazem Dockera publikowanym w ghcr.io.
 
 ## Licencja
 
