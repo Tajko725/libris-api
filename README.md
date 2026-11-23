@@ -7,14 +7,14 @@ REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-c
 ## Technologie
 
 - Java 25
-- Spring Boot 4.1.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
+- Spring Boot 4.2.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
 - Spring Data JPA z Hibernate 7 (encje, repozytoria) i Jakarta Persistence
 - PostgreSQL 18 uruchamiany w Dockerze (Docker Compose, wolumen na dane)
 - Flyway (migracje schematu bazy)
 - JUnit i Testcontainers (testy z prawdziwą bazą)
 - Maven (wrapper `mvnw`)
-- Jackson 3.1.8 (podniesiony ponad wersję ze Spring Boot 4.1.2 z powodu CVE-2026-110879)
-- springdoc-openapi 3.2.0 (dokumentacja OpenAPI i Swagger UI)
+- Jackson 3 (wersja zarządzana przez Spring Boot)
+- springdoc-openapi 3.2.1 (dokumentacja OpenAPI i Swagger UI)
 - Spring Security 7 z serwerem zasobów OAuth2 (tokeny JWT HS256) i haszowaniem haseł bcrypt (`DelegatingPasswordEncoder`)
 
 ## Jak uruchomić
@@ -231,18 +231,18 @@ Samą aplikację mogę też uruchomić poleceniem `docker run` na już działaj�
 
 ### Gotowy obraz z wydania
 
-Każde wydanie (tag `vX.Y.Z`) publikuję jako obraz w GitHub Container Registry (workflow `Release`, `.github/workflows/release.yml`), więc aplikację da się uruchomić bez budowania. Obraz dostaje tagi z numerem wydania (`1.0.0`, `1.0`), a `latest` wskazuje najnowsze:
+Każde wydanie (tag `vX.Y.Z`) publikuję jako obraz w GitHub Container Registry (workflow `Release`, `.github/workflows/release.yml`), więc aplikację da się uruchomić bez budowania. Obraz dostaje tagi z numerem wydania (`1.1.0`, `1.1`), a `latest` wskazuje najnowsze:
 
 ```
-docker pull ghcr.io/tajko725/libris-api:1.0.0
+docker pull ghcr.io/tajko725/libris-api:1.1.0
 ```
 
-Uruchamiam go tak samo jak lokalnie zbudowany obraz (zmienne środowiskowe z tabeli w sekcji „Konfiguracja”), tylko z nazwą `ghcr.io/tajko725/libris-api:1.0.0` zamiast `libris-api`.
+Uruchamiam go tak samo jak lokalnie zbudowany obraz (zmienne środowiskowe z tabeli w sekcji „Konfiguracja”), tylko z nazwą `ghcr.io/tajko725/libris-api:1.1.0` zamiast `libris-api`.
 
 
 ## Status
 
-Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Wydanie 1.0.0 z obrazem Dockera publikowanym w ghcr.io.
+Gotowe: szkielet projektu, baza w Dockerze, model danych książek, egzemplarzy, czytelników i wypożyczeń, REST API książek, egzemplarzy, czytelników i wypożyczeń z DTO, walidacją i obsługą błędów oraz dokumentacja OpenAPI ze Swagger UI. Model użytkowników z bezpiecznie przechowywanymi hasłami, pierwszy administrator oraz logowanie tokenem JWT z rolami `LIBRARIAN` i `ADMIN`. API do zarządzania użytkownikami z ochroną ostatniego administratora. CI w GitHub Actions z budowaniem obrazu Dockera i aktualizacjami zależności przez Dependabota. Wydanie 1.1.0 (aktualizacja do Spring Boot 4.2) z obrazem Dockera publikowanym w ghcr.io. Projekt uznaję za ukończony.
 
 ## Licencja
 

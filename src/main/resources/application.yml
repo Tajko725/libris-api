@@ -50,3 +50,8 @@ springdoc:
     operations-sorter: method
     display-request-duration: true
     persist-authorization: true
+
+server:
+  tomcat:
+    # Tomcat 11.0.27 domyślnie odrzuca nagłówek Accept-Language z ponad 10 językami (błąd 500)
+    max-locale-count: 50
