@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: libris-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/libris}
+    username: ${DB_USER:libris}
+    password: ${DB_PASSWORD:libris}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
+libris:
+  loans:
+    # Zasady wypożyczeń: okres wypożyczenia (dni), limit niezwróconych książek na czytelnika, długość przedłużenia (dni)
+    period-days: 30
+    max-active-per-reader: 5
+    renewal-days: 14
+
+  security:
+    # Pierwszy administrator jest tworzony przy starcie tylko wtedy, gdy w bazie nie ma żadnego użytkownika
+    # i ustawiono hasło. Hasło podaję zmienną środowiskową, nigdy w repozytorium.
+    admin:
+      username: ${LIBRIS_ADMIN_USERNAME:admin}
+      password: ${LIBRIS_ADMIN_PASSWORD:}
+    # Tokeny JWT (HS256). Sekret ma mieć co najmniej 32 bajty. Wartość domyślna służy tylko do pracy lokalnej:
+    # na każdym innym środowisku ustawiam własny sekret w zmiennej LIBRIS_JWT_SECRET.
+    jwt:
+      secret: ${LIBRIS_JWT_SECRET:libris-dev-only-secret-change-me-0123456789}
+      expiration: 60m
+      issuer: libris-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    display-request-duration: true
+    persist-authorization: true

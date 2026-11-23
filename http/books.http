@@ -1,0 +1,186 @@
+@host = http://localhost:8080
+# Token z odpowiedzi na logowanie (pole accessToken); ważny 60 minut
+@token = tu-wklej-accessToken
+
+### Zaloguj się (publiczny endpoint, hasło ustawiam zmienną LIBRIS_ADMIN_PASSWORD)
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Haslo-startowe-123"
+}
+
+### Dodaj książkę
+POST {{host}}/api/v1/books
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Czysty kod",
+  "author": "Robert C. Martin",
+  "publicationYear": 2008,
+  "isbn": "0-13-235088-2",
+  "genre": "SCIENCE"
+}
+
+### Lista z wyszukiwaniem
+GET {{host}}/api/v1/books?search=kod&sort=title,asc
+Authorization: Bearer {{token}}
+
+### Pobierz książkę
+GET {{host}}/api/v1/books/1
+Authorization: Bearer {{token}}
+
+### Aktualizuj (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/books/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Czysty kod. Wydanie 2",
+  "author": "Robert C. Martin",
+  "publicationYear": 2008,
+  "isbn": "9780132350884",
+  "genre": "SCIENCE",
+  "version": 0
+}
+
+### Usuń książkę
+DELETE {{host}}/api/v1/books/1
+Authorization: Bearer {{token}}
+
+
+### Dodaj 3 egzemplarze do książki 1
+POST {{host}}/api/v1/books/1/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "count": 3
+}
+
+### Lista egzemplarzy książki 1
+GET {{host}}/api/v1/books/1/items
+Authorization: Bearer {{token}}
+
+### Usuń egzemplarz 1 książki 1
+DELETE {{host}}/api/v1/books/1/items/1
+Authorization: Bearer {{token}}
+
+
+### Zarejestruj czytelnika
+POST {{host}}/api/v1/readers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Anna",
+  "lastName": "Nowak",
+  "email": "anna.nowak@example.com",
+  "phone": "+48 123 456 789"
+}
+
+### Lista czytelników z wyszukiwaniem
+GET {{host}}/api/v1/readers?search=nowak&active=true&sort=lastName,asc
+Authorization: Bearer {{token}}
+
+### Zaktualizuj i dezaktywuj czytelnika (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/readers/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Anna",
+  "lastName": "Nowak",
+  "email": "anna.nowak@example.com",
+  "phone": "+48 123 456 789",
+  "active": false,
+  "version": 0
+}
+
+### Usuń czytelnika
+DELETE {{host}}/api/v1/readers/1
+Authorization: Bearer {{token}}
+
+
+### Lista książek z wolnym egzemplarzem
+GET {{host}}/api/v1/books?available=true
+Authorization: Bearer {{token}}
+
+
+### Wypożycz egzemplarz 1 czytelnikowi 1
+POST {{host}}/api/v1/loans
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "bookItemId": 1,
+  "readerId": 1
+}
+
+### Pobierz wypożyczenie
+GET {{host}}/api/v1/loans/1
+Authorization: Bearer {{token}}
+
+### Aktywne wypożyczenia czytelnika 1
+GET {{host}}/api/v1/loans?readerId=1&status=ACTIVE
+Authorization: Bearer {{token}}
+
+### Przeterminowane wypożyczenia
+GET {{host}}/api/v1/loans?status=OVERDUE&sort=dueDate,asc
+Authorization: Bearer {{token}}
+
+### Przedłuż termin zwrotu (raz, tylko przed terminem)
+POST {{host}}/api/v1/loans/1/renew
+Authorization: Bearer {{token}}
+
+### Zwróć książkę
+POST {{host}}/api/v1/loans/1/return
+Authorization: Bearer {{token}}
+
+
+### Zmień własne hasło
+PUT {{host}}/api/v1/auth/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "Haslo-startowe-123",
+  "newPassword": "Nowe-dlugie-haslo-1"
+}
+
+### Użytkownicy (tylko ADMIN): utwórz konto
+POST {{host}}/api/v1/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "jan.kowalski",
+  "password": "Bardzo-dlugie-haslo-1",
+  "role": "LIBRARIAN"
+}
+
+### Użytkownicy: lista z filtrami
+GET {{host}}/api/v1/users?role=LIBRARIAN&enabled=true&search=jan
+Authorization: Bearer {{token}}
+
+### Użytkownicy: zmień rolę lub wyłącz konto (wersja z odpowiedzi GET)
+PUT {{host}}/api/v1/users/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "LIBRARIAN",
+  "enabled": false,
+  "version": 0
+}
+
+### Użytkownicy: zresetuj hasło
+PUT {{host}}/api/v1/users/2/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "newPassword": "Nowe-dlugie-haslo-2"
+}
