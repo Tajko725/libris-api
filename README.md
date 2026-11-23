@@ -4,18 +4,30 @@
 
 REST API biblioteki. Trzeci projekt z cyklu Libris: najpierw konsolowy [libris-cli](https://github.com/Tajko725/libris-cli), potem [libris-core](https://github.com/Tajko725/libris-core), a teraz aplikacja webowa z bazą danych PostgreSQL. Projekt przygotowuję, żeby pokazać swój poziom w Javie i Spring Boot.
 
+## Ścieżka nauki
+
+| Etap | Projekt | Zakres | Status |
+|------|---------|--------|--------|
+| 1/3 | [libris-cli](https://github.com/Tajko725/libris-cli) | Podstawy Javy, konsola, dane w pamięci | ukończony (v1.0.1) |
+| 2/3 | [libris-core](https://github.com/Tajko725/libris-core) | Programowanie obiektowe, warstwy, zapis do JSON | ukończony (v1.0.0) |
+| **3/3** | **libris-api** (ten projekt) | Spring Boot, REST API, baza PostgreSQL | ukończony (v1.1.0) |
+
 ## Technologie
 
-- Java 25
-- Spring Boot 4.2.x (Spring Web, Spring Data JPA, Validation, Actuator, Security)
-- Spring Data JPA z Hibernate 7 (encje, repozytoria) i Jakarta Persistence
-- PostgreSQL 18 uruchamiany w Dockerze (Docker Compose, wolumen na dane)
-- Flyway (migracje schematu bazy)
-- JUnit i Testcontainers (testy z prawdziwą bazą)
-- Maven (wrapper `mvnw`)
-- Jackson 3 (wersja zarządzana przez Spring Boot)
-- springdoc-openapi 3.2.1 (dokumentacja OpenAPI i Swagger UI)
-- Spring Security 7 z serwerem zasobów OAuth2 (tokeny JWT HS256) i haszowaniem haseł bcrypt (`DelegatingPasswordEncoder`)
+| Technologia | Wersja |
+|-------------|--------|
+| Java (JDK) | 25 |
+| Spring Boot | 4.2.0 (Spring Web MVC, Spring Data JPA, Validation, Actuator) |
+| Spring Framework | 7.1.0 |
+| Spring Security | 7 (wersja zarządzana przez Spring Boot): serwer zasobów OAuth2, tokeny JWT HS256, haszowanie haseł bcrypt (`DelegatingPasswordEncoder`) |
+| Hibernate ORM | 7.4.15 (Jakarta Persistence) |
+| PostgreSQL | 18 (uruchamiany w Dockerze: Docker Compose, wolumen na dane) |
+| Flyway | wersja zarządzana przez Spring Boot (migracje schematu bazy) |
+| Jackson | 3 (wersja zarządzana przez Spring Boot) |
+| springdoc-openapi | 3.2.1 (dokumentacja OpenAPI i Swagger UI) |
+| JUnit Jupiter | 6.1.3 |
+| Testcontainers | 2.0.5 (testy z prawdziwą bazą) |
+| Maven | 3.10.2 (wrapper `mvnw`) |
 
 ## Jak uruchomić
 
